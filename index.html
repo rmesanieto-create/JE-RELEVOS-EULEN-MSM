@@ -80,7 +80,7 @@
                 </div>
 
                 <button type="submit" id="btn-guardar" class="w-full bg-amber-600 text-white font-bold py-3 px-4 rounded-xl shadow hover:bg-amber-700 transition flex items-center justify-center gap-2">
-                    <i data-lucide="cloud-lightning" class="w-5 h-5"></i> Guardar en Base de Datos Real
+                    <i data-lucide="cloud-upload" class="w-5 h-5"></i> Guardar Turno y Fotos en la Nube
                 </button>
             </form>
         </div>
@@ -98,7 +98,7 @@
             <!-- Div de carga -->
             <div id="loading-spinner" class="text-center py-12 hidden">
                 <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-amber-600 border-t-transparent"></div>
-                <p class="text-sm text-gray-500 mt-2 font-medium">Conectando con la base de datos de Mahou...</p>
+                <p class="text-sm text-gray-500 mt-2 font-medium">Descargando partes y evidencias de Mahou Drive...</p>
             </div>
 
             <div id="lista-historial" class="space-y-4"></div>
@@ -107,7 +107,7 @@
     </main>
 
     <script>
-        // PEGA AQUÍ TU URL EN MEDIO DE LAS COMILLAS
+        // Cambia esto por tu URL de implementación de Google Apps Script
         const WEB_APP_URL = "https://script.google.com/a/macros/eulen.com/s/AKfycbyleaTqFk7Q6OM69TUmdRP6igHMDExSEotJLLlXd1p5YWt185XHST2tROVX7MwEnw96/exec";
 
         const puestos = [
@@ -147,11 +147,75 @@
 
         function renderSecciones() {
             document.getElementById("secciones-container").innerHTML = puestos.map(puesto => `
-                <div class="bg-white p-4 rounded-xl border border-gray-200">
-                    <h3 class="font-bold text-gray-800 mb-2">${puesto.nombre}</h3>
-                    <textarea id="texto-${puesto.id}" rows="2" placeholder="Sin incidencias..." class="w-full px-3 py-2 border border-gray-300 rounded-lg outline-none text-sm"></textarea>
+                <div class="bg-white p-4 rounded-xl border border-gray-200 space-y-3">
+                    <h3 class="font-bold text-gray-800">${puesto.nombre}</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <textarea id="texto-${puesto.id}" rows="2" placeholder="Sin incidencias..." class="w-full px-3 py-2 border border-gray-300 rounded-lg outline-none text-sm"></textarea>
+                        
+                        <div class="flex flex-col justify-center border border-dashed border-gray-200 rounded-lg p-2 bg-gray-50">
+                            <div class="flex items-center gap-2">
+                                <label class="cursor-pointer bg-white border text-xs font-semibold text-gray-700 px-3 py-1.5 rounded shadow-sm hover:bg-gray-50">
+                                    📸 Hacer / Subir Foto
+                                    <input type="file" id="foto-${puesto.id}" accept="image/*" class="hidden" onchange="comprimirYPrevisualizar(this, '${puesto.id}')">
+                                </label>
+                                <button type="button" id="btn-borrar-${puesto.id}" onclick="borrarFoto('${puesto.id}')" class="hidden text-red-500 hover:text-red-700">
+                                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                </button>
+                            </div>
+                            <div class="mt-2 hidden" id="preview-container-${puesto.id}">
+                                <img id="preview-${puesto.id}" src="" class="h-16 w-auto object-cover rounded border">
+                            </div>
+                        </div>
+                    </div>
                 </div>
             `).join('');
+        }
+
+        // COMPRESIÓN DE IMAGEN EN CLIENTE (Canvas)
+        function comprimirYPrevisualizar(input, id) {
+            const file = input.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = new Image();
+                img.onload = function() {
+                    const canvas = document.createElement('canvas');
+                    const MAX_WIDTH = 800; // Redimensionamos la foto para que pese poquísimo
+                    let width = img.width;
+                    let height = img.height;
+
+                    if (width > MAX_WIDTH) {
+                        height *= MAX_WIDTH / width;
+                        width = MAX_WIDTH;
+                    }
+                    canvas.width = width;
+                    canvas.height = height;
+
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+
+                    // Convertimos a JPG con calidad media (70%) para una subida instantánea
+                    const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+                    
+                    // Almacenamos temporalmente el texto de la foto en el propio input
+                    input.dataset.base64 = dataUrl;
+
+                    document.getElementById(`preview-${id}`).src = dataUrl;
+                    document.getElementById(`preview-container-${id}`).classList.remove('hidden');
+                    document.getElementById(`btn-borrar-${id}`).classList.remove('hidden');
+                }
+                img.src = e.target.result;
+            }
+            reader.readAsDataURL(file);
+        }
+
+        function borrarFoto(id) {
+            const input = document.getElementById(`foto-${id}`);
+            input.value = "";
+            delete input.dataset.base64;
+            document.getElementById(`preview-container-${id}`).classList.add('hidden');
+            document.getElementById(`btn-borrar-${id}`).classList.add('hidden');
         }
 
         function establecerFechaYTurnoAutomatico() {
@@ -168,22 +232,26 @@
             document.getElementById("turno-seleccionado").value = turno;
         }
 
-        // GUARDADO REAL EN GOOGLE SHEETS VIA API
+        // GUARDADO EN LA NUBE
         document.getElementById("relevo-form").addEventListener("submit", (e) => {
             e.preventDefault();
             
             const btn = document.getElementById("btn-guardar");
             btn.disabled = true;
-            btn.innerText = "Guardando en la nube...";
+            btn.innerText = "Subiendo reporte y fotos a Drive...";
 
             const reporte = {
                 fecha: document.getElementById("fecha-turno").value,
                 turno: document.getElementById("turno-seleccionado").value,
                 jefe: document.getElementById("nombre-jefe").value,
-                puestos: puestos.map(p => ({
-                    nombre: p.nombre,
-                    novedades: document.getElementById(`texto-${p.id}`).value || "Sin incidencias"
-                })),
+                puestos: puestos.map(p => {
+                    const inputFoto = document.getElementById(`foto-${p.id}`);
+                    return {
+                        nombre: p.nombre,
+                        novedades: document.getElementById(`texto-${p.id}`).value || "Sin incidencias",
+                        fotoBase64: inputFoto.dataset.base64 || "" // Enviamos la foto si existe
+                    };
+                }),
                 observaciones: document.getElementById("observaciones-finales").value
             };
 
@@ -194,21 +262,21 @@
                 body: JSON.stringify(reporte)
             })
             .then(() => {
-                alert("¡Parte subido con éxito a la nube!");
+                alert("¡Parte y fotos guardados con éxito en la nube de Mahou!");
                 document.getElementById("relevo-form").reset();
+                puestos.forEach(p => borrarFoto(p.id));
                 establecerFechaYTurnoAutomatico();
                 btn.disabled = false;
-                btn.innerHTML = `<i data-lucide="cloud-lightning" class="w-5 h-5"></i> Guardar en Base de Datos Real`;
+                btn.innerHTML = `<i data-lucide="cloud-upload" class="w-5 h-5"></i> Guardar Turno y Fotos en la Nube`;
                 lucide.createIcons();
                 cambiarPestana('historial');
             })
             .catch(err => {
-                alert("Error al conectar con la base de datos.");
+                alert("Error de conexión con la base de datos.");
                 btn.disabled = false;
             });
         });
 
-        // CONSULTA REAL A LA BASE DE DATOS
         function consultarBaseDeDatos() {
             const contenedor = document.getElementById("lista-historial");
             const spinner = document.getElementById("loading-spinner");
@@ -225,7 +293,7 @@
             })
             .catch(err => {
                 spinner.classList.add("hidden");
-                contenedor.innerHTML = `<div class="p-4 bg-red-50 text-red-600 rounded-xl border text-center">Error al leer la base de datos. Verifica la URL.</div>`;
+                contenedor.innerHTML = `<div class="p-4 bg-red-50 text-red-600 rounded-xl border text-center">Error al conectar con la base de datos cloud.</div>`;
             });
         }
 
@@ -235,8 +303,6 @@
             contenedor.innerHTML = "";
 
             let registros = [...cacheRegistros];
-            
-            // Ordenar por fecha (nuevos primero)
             registros.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
 
             if (filtroFecha) {
@@ -244,7 +310,7 @@
             }
 
             if (registros.length === 0) {
-                contenedor.innerHTML = `<div class="p-8 text-center text-gray-500 bg-white rounded-xl border border-dashed border-gray-300">No se encontraron registros.</div>`;
+                contenedor.innerHTML = `<div class="p-8 text-center text-gray-500 bg-white rounded-xl border border-dashed border-gray-300">No hay partes registrados.</div>`;
                 return;
             }
 
@@ -257,12 +323,18 @@
                     const colorPunto = esIncidencia ? "bg-red-500" : "bg-green-500";
                     const textoIncidencia = esIncidencia ? p.novedades : '<span class="text-gray-400 italic">Sin incidencias</span>';
                     
+                    // Si el registro guardado incluye una URL válida de foto en Google Drive, la mostramos
+                    const htmlFoto = (p.foto && p.foto.startsWith("http")) 
+                        ? `<div class="mt-2"><img src="${p.foto}" alt="Evidencia" class="h-32 w-auto object-cover rounded border shadow-sm cursor-zoom-in" onclick="window.open('${p.foto}', '_blank')"></div>` 
+                        : '';
+                    
                     return `
-                        <div class="flex items-start gap-2 mb-2 text-sm border-b border-gray-50 pb-2">
+                        <div class="flex items-start gap-2 mb-3 border-b border-gray-50 pb-3">
                             <div class="w-2 h-2 rounded-full mt-1.5 ${colorPunto}"></div>
                             <div class="flex-1">
-                                <span class="font-bold text-gray-700">${p.nombre}:</span> 
-                                <span class="text-gray-600">${textoIncidencia}</span>
+                                <span class="font-bold text-gray-700 text-sm">${p.nombre}:</span> 
+                                <span class="text-gray-600 text-sm">${textoIncidencia}</span>
+                                ${htmlFoto}
                             </div>
                         </div>`;
                 }).join('');
@@ -277,7 +349,7 @@
                             <span class="text-sm font-semibold text-gray-600">👤 ${reg.jefe}</span>
                         </div>
                         <div class="pl-1">${htmlPuestos}</div>
-                        ${reg.observaciones ? `<div class="mt-3 p-3 bg-gray-50 text-sm rounded-lg text-gray-700 border border-gray-100"><b>Observaciones:</b> ${reg.observaciones}</div>` : ''}
+                        ${reg.observaciones ? `<div class="mt-2 p-3 bg-gray-50 text-sm rounded-lg text-gray-700 border border-gray-100"><b>Observaciones:</b> ${reg.observaciones}</div>` : ''}
                     </div>
                 `;
             });
