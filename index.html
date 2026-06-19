@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Eulen - Relevos Mahou San Miguel</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body class="bg-gray-50 text-gray-800 font-sans antialiased pb-12">
+
+    <!-- CABECERA -->
+    <header class="bg-amber-600 text-white shadow-md sticky top-0 z-50">
+        <div class="max-w-4xl mx-auto px-4 py-4 flex justify-between items-center">
+            <div>
+                <h1 class="text-xl font-bold tracking-tight">EULEN</h1>
+                <p class="text-xs text-amber-100 font-medium">Control de Relevos - Mahou SM</p>
+            </div>
+            <div class="bg-amber-700 px-3 py-1.5 rounded-lg text-sm font-semibold flex items-center gap-2">
+                <i data-lucide="calendar" class="w-4 h-4"></i>
+                <span id="current-date-badge">--/--/----</span>
+            </div>
+        </div>
+        
+        <!-- PESTAÑAS DE NAVEGACIÓN -->
+        <div class="max-w-4xl mx-auto px-4 mt-2 flex gap-1 border-b border-amber-500">
+            <button onclick="cambiarPestana('nuevo')" id="tab-nuevo" class="px-4 py-2 font-semibold bg-white text-amber-600 rounded-t-lg transition">
+                📝 Nuevo Parte
+            </button>
+            <button onclick="cambiarPestana('historial')" id="tab-historial" class="px-4 py-2 font-semibold text-amber-100 hover:bg-amber-700 rounded-t-lg transition">
+                🗂️ Histórico
+            </button>
+        </div>
+    </header>
+
+    <main class="max-w-4xl mx-auto px-4 mt-6">
+        
+        <!-- VISTA 1: FORMULARIO DE NUEVO PARTE -->
+        <div id="vista-nuevo" class="block">
+            <form id="relevo-form" class="space-y-6">
+                <!-- DATOS GENERALES -->
+                <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100 space-y-4">
+                    <h2 class="text-lg font-bold text-gray-900 flex items-center gap-2 border-b pb-2">
+                        <i data-lucide="clipboard-list" class="text-amber-600"></i> Datos del Turno
+                    </h2>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Jefe de Equipo</label>
+                            <input type="text" id="nombre-jefe" required placeholder="Ej. Juan Pérez" class="w-full px-3 py-2 border border-gray-300 rounded-lg outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Fecha</label>
+                            <input type="date" id="fecha-turno" required class="w-full px-3 py-2 border border-gray-300 rounded-lg outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Turno</label>
+                            <select id="turno-seleccionado" required class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white outline-none">
+                                <option value="MAÑANA">MAÑANA</option>
+                                <option value="TARDE">TARDE</option>
+                                <option value="NOCHE">NOCHE</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PUESTOS DE TRABAJO (SECCIONES DINÁMICAS) -->
+                <div class="space-y-4">
+                    <h2 class="text-lg font-bold text-gray-900 flex items-center gap-2 px-1">
+                        <i data-lucide="factory" class="text-amber-600"></i> Estado de los Puestos
+                    </h2>
+                    <div id="secciones-container" class="space-y-4"></div>
+                </div>
+
+                <!-- OBSERVACIONES FINALES -->
+                <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100 space-y-3">
+                    <h2 class="text-lg font-bold text-gray-900 flex items-center gap-2 border-b pb-2">
+                        <i data-lucide="message-square" class="text-amber-600"></i> Observaciones Finales
+                    </h2>
+                    <textarea id="observaciones-finales" rows="3" placeholder="Notas aclaratorias..." class="w-full px-3 py-2 border border-gray-300 rounded-lg outline-none"></textarea>
+                </div>
+
+                <!-- BOTÓN GUARDAR -->
+                <button type="submit" class="w-full bg-amber-600 text-white font-bold py-3 px-4 rounded-xl shadow hover:bg-amber-700 transition flex items-center justify-center gap-2">
+                    <i data-lucide="save" class="w-5 h-5"></i> Finalizar y Guardar Turno
+                </button>
+            </form>
+        </div>
+
+        <!-- VISTA 2: HISTÓRICO -->
+        <div id="vista-historial" class="hidden space-y-4">
+            <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100 flex flex-col sm:flex-row justify-between items-center gap-4">
+                <h2 class="text-lg font-bold text-gray-900">Registros Anteriores</h2>
+                <div class="flex items-center gap-2">
+                    <label class="text-sm text-gray-600 font-medium">Filtrar por fecha:</label>
+                    <input type="date" id="filtro-historial" onchange="cargarHistorial()" class="px-3 py-1.5 border border-gray-300 rounded-lg outline-none">
+                </div>
+            </div>
+
+            <div id="lista-historial" class="space-y-4">
+                <!-- Aquí se cargarán los registros pasados -->
+            </div>
+        </div>
+
+    </main>
+
+    <!-- LOGICA JAVASCRIPT -->
+    <script>
+        const puestos = [
+            { id: "linea-1", nombre: "Línea 1" }, { id: "linea-2", nombre: "Línea 2" },
+            { id: "linea-3", nombre: "Línea 3" }, { id: "linea-4", nombre: "Línea 4" },
+            { id: "linea-5", nombre: "Línea 5" }, { id: "carga-descarga", nombre: "Carga y descarga" },
+            { id: "carretillas", nombre: "Carretillas" }
+        ];
+
+        document.addEventListener("DOMContentLoaded", () => {
+            renderSecciones();
+            establecerFechaYTurnoAutomatico();
+            lucide.createIcons();
+            cargarHistorial(); // Cargar datos al iniciar
+        });
+
+        // Cambiar entre Pestañas
+        function cambiarPestana(pestana) {
+            const vistaNuevo = document.getElementById('vista-nuevo');
+            const vistaHistorial = document.getElementById('vista-historial');
+            const tabNuevo = document.getElementById('tab-nuevo');
+            const tabHistorial = document.getElementById('tab-historial');
+
+            if (pestana === 'nuevo') {
+                vistaNuevo.classList.remove('hidden');
+                vistaHistorial.classList.add('hidden');
+                
+                tabNuevo.classList.add('bg-white', 'text-amber-600');
+                tabNuevo.classList.remove('text-amber-100', 'hover:bg-amber-700');
+                
+                tabHistorial.classList.add('text-amber-100', 'hover:bg-amber-700');
+                tabHistorial.classList.remove('bg-white', 'text-amber-600');
+            } else {
+                vistaNuevo.classList.add('hidden');
+                vistaHistorial.classList.remove('hidden');
+                
+                tabHistorial.classList.add('bg-white', 'text-amber-600');
+                tabHistorial.classList.remove('text-amber-100', 'hover:bg-amber-700');
+                
+                tabNuevo.classList.add('text-amber-100', 'hover:bg-amber-700');
+                tabNuevo.classList.remove('bg-white', 'text-amber-600');
+                
+                cargarHistorial();
+            }
+        }
+
+        function renderSecciones() {
+            const container = document.getElementById("secciones-container");
+            container.innerHTML = puestos.map(puesto => `
+                <div class="bg-white p-4 rounded-xl border border-gray-200">
+                    <h3 class="font-bold text-gray-800 mb-2">${puesto.nombre}</h3>
+                    <textarea id="texto-${puesto.id}" rows="2" placeholder="Sin incidencias..." class="w-full px-3 py-2 border border-gray-300 rounded-lg outline-none text-sm"></textarea>
+                </div>
+            `).join('');
+        }
+
+        function establecerFechaYTurnoAutomatico() {
+            const hoy = new Date();
+            const mes = String(hoy.getMonth() + 1).padStart(2, '0');
+            const dia = String(hoy.getDate()).padStart(2, '0');
+            const fechaFormato = `${hoy.getFullYear()}-${mes}-${dia}`;
+            
+            document.getElementById("fecha-turno").value = fechaFormato;
+            document.getElementById("current-date-badge").innerText = `${dia}/${mes}/${hoy.getFullYear()}`;
+
+            const hora = hoy.getHours();
+            let turno = "MAÑANA"; 
+            if (hora >= 14 && hora < 22) turno = "TARDE";
+            else if (hora >= 22 || hora < 6) turno = "NOCHE";
+            document.getElementById("turno-seleccionado").value = turno;
+        }
+
+        // GUARDAR DATOS
+        document.getElementById("relevo-form").addEventListener("submit", (e) => {
+            e.preventDefault();
+            
+            const fecha = document.getElementById("fecha-turno").value;
+            const turno = document.getElementById("turno-seleccionado").value;
+            
+            const reporte = {
+                id: `relevo_${fecha}_${turno}`,
+                fecha: fecha,
+                turno: turno,
+                jefe: document.getElementById("nombre-jefe").value,
+                puestos: puestos.map(p => ({
+                    nombre: p.nombre,
+                    novedades: document.getElementById(`texto-${p.id}`).value || "Sin incidencias"
+                })),
+                observaciones: document.getElementById("observaciones-finales").value
+            };
+
+            // Guardar en LocalStorage (Memoria del navegador)
+            localStorage.setItem(reporte.id, JSON.stringify(reporte));
+            
+            alert("¡Parte guardado correctamente!");
+            document.getElementById("relevo-form").reset();
+            establecerFechaYTurnoAutomatico();
+            cambiarPestana('historial');
+        });
+
+        // CARGAR HISTORIAL
+        function cargarHistorial() {
+            const contenedor = document.getElementById("lista-historial");
+            const filtroFecha = document.getElementById("filtro-historial").value;
+            contenedor.innerHTML = "";
+            
+            let registros = [];
+
+            // Leer todo lo guardado en la memoria del navegador
+            for (let i = 0; i < localStorage.length; i++) {
+                const clave = localStorage.key(i);
+                if (clave.startsWith("relevo_")) {
+                    registros.push(JSON.parse(localStorage.getItem(clave)));
+                }
+            }
+
+            // Ordenar por fecha (más nuevos primero)
+            registros.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+
+            // Filtrar por fecha si el usuario seleccionó una
+            if (filtroFecha) {
+                registros = registros.filter(r => r.fecha === filtroFecha);
+            }
+
+            if (registros.length === 0) {
+                contenedor.innerHTML = `<div class="p-8 text-center text-gray-500 bg-white rounded-xl border border-dashed border-gray-300">No hay partes guardados para esta fecha.</div>`;
+                return;
+            }
+
+            // Mostrar tarjetas del historial
+            registros.forEach(reg => {
+                // Formatear la fecha para que se vea bonita (Ej: 19/06/2026)
+                const [ano, mes, dia] = reg.fecha.split('-');
+                const fechaEspanol = `${dia}/${mes}/${ano}`;
+
+                let htmlPuestos = reg.puestos.map(p => {
+                    const esIncidencia = p.novedades !== "Sin incidencias" && p.novedades.trim() !== "";
+                    const colorPunto = esIncidencia ? "bg-red-500" : "bg-green-500";
+                    const textoIncidencia = esIncidencia ? p.novedades : '<span class="text-gray-400 italic">Sin incidencias</span>';
+                    
+                    return `
+                        <div class="flex items-start gap-2 mb-2 text-sm border-b border-gray-50 pb-2">
+                            <div class="w-2 h-2 rounded-full mt-1.5 ${colorPunto}"></div>
+                            <div class="flex-1">
+                                <span class="font-bold text-gray-700">${p.nombre}:</span> 
+                                <span class="text-gray-600">${textoIncidencia}</span>
+                            </div>
+                        </div>`;
+                }).join('');
+
+                contenedor.innerHTML += `
+                    <div class="bg-white p-5 rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition">
+                        <div class="flex justify-between items-center border-b pb-3 mb-3">
+                            <div>
+                                <span class="bg-gray-100 text-gray-800 text-xs font-bold px-2 py-1 rounded border">📅 ${fechaEspanol}</span>
+                                <span class="bg-amber-100 text-amber-800 text-xs font-bold px-2 py-1 rounded ml-1">⏰ Turno: ${reg.turno}</span>
+                            </div>
+                            <span class="text-sm font-semibold text-gray-600">👤 ${reg.jefe}</span>
+                        </div>
+                        <div class="pl-1">
+                            ${htmlPuestos}
+                        </div>
+                        ${reg.observaciones ? `<div class="mt-3 p-3 bg-gray-50 text-sm rounded-lg text-gray-700 border border-gray-100"><b>Observaciones:</b> ${reg.observaciones}</div>` : ''}
+                    </div>
+                `;
+            });
+        }
+    </script>
+</body>
+</html>
