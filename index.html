@@ -1,359 +1,638 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Eulen - Relevos Mahou San Miguel</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Pista · Timer HIIT</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #0B0E11;
+    --surface: #12161C;
+    --surface-2: #1A2029;
+    --work: #FF3B30;
+    --work-dim: #4a201d;
+    --rest: #2FD1BE;
+    --rest-dim: #123c38;
+    --block: #FFC24D;
+    --block-dim: #3f3018;
+    --text: #F4F6F9;
+    --muted: #7C879B;
+    --line: #232A34;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color: transparent;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    background: radial-gradient(circle at 50% -10%, #171D25 0%, var(--bg) 55%);
+    color:var(--text);
+    font-family:'Inter', sans-serif;
+    min-height:100vh;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    overflow-x:hidden;
+  }
+  @media (prefers-reduced-motion: reduce){
+    *{ transition: none !important; animation: none !important; }
+  }
+
+  .track-bg{
+    position:fixed; inset:0; pointer-events:none; z-index:0;
+    background-image: repeating-linear-gradient(90deg, transparent 0 78px, rgba(255,255,255,0.025) 78px 80px);
+  }
+
+  .wrap{
+    position:relative; z-index:1;
+    width:100%; max-width:460px;
+    padding: 28px 20px 40px;
+    display:flex; flex-direction:column; align-items:center;
+    min-height:100vh;
+  }
+
+  header{
+    width:100%;
+    display:flex; align-items:baseline; justify-content:space-between;
+    margin-bottom: 18px;
+  }
+  .brand{
+    font-family:'Oswald', sans-serif;
+    font-size:15px; letter-spacing:0.28em; text-transform:uppercase;
+    color:var(--muted); font-weight:600;
+  }
+  .brand b{color:var(--text);}
+  .lap-indicator{
+    font-family:'Oswald', sans-serif;
+    font-size:13px; letter-spacing:0.1em; color:var(--muted);
+    text-transform:uppercase;
+  }
+  .lap-indicator b{color:var(--text); font-size:14px;}
+
+  /* Phase label */
+  .phase-row{
+    display:flex; align-items:center; gap:8px;
+    margin-bottom: 10px;
+  }
+  .phase-dot{
+    width:8px; height:8px; border-radius:50%;
+    background:var(--muted);
+    box-shadow: 0 0 0 0 rgba(255,255,255,0);
+  }
+  .phase-label{
+    font-family:'Oswald', sans-serif;
+    font-size:14px; letter-spacing:0.32em; text-transform:uppercase;
+    color:var(--muted); font-weight:600;
+  }
+
+  .exercise-name{
+    font-family:'Oswald', sans-serif;
+    font-size: clamp(28px, 8vw, 38px);
+    font-weight:700;
+    text-transform:uppercase;
+    letter-spacing:0.01em;
+    text-align:center;
+    margin: 0 0 26px;
+    min-height:46px;
+    transition: color .25s ease;
+  }
+
+  /* Ring */
+  .ring-zone{
+    position:relative;
+    width:min(78vw, 300px); height:min(78vw, 300px);
+    display:flex; align-items:center; justify-content:center;
+    margin-bottom: 22px;
+  }
+  .ring-zone svg{ width:100%; height:100%; transform:rotate(-90deg); }
+  .ring-track{ fill:none; stroke:var(--line); stroke-width:10; }
+  .ring-progress{
+    fill:none; stroke-width:10; stroke-linecap:round;
+    stroke:var(--work);
+    transition: stroke-dashoffset 1s linear, stroke .25s ease;
+  }
+  .ring-center{
+    position:absolute; inset:0;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+  }
+  .big-time{
+    font-family:'Oswald', sans-serif;
+    font-weight:700;
+    font-size: clamp(56px, 18vw, 84px);
+    line-height:1;
+    font-variant-numeric: tabular-nums;
+    color:var(--text);
+  }
+  .big-time.pulse{ animation: pulse .5s ease; }
+  @keyframes pulse{ 0%{ transform:scale(1);} 30%{ transform:scale(1.08);} 100%{ transform:scale(1);} }
+  .next-label{
+    margin-top:8px;
+    font-family:'Inter', sans-serif;
+    font-size:13px; color:var(--muted);
+    text-align:center;
+    letter-spacing:0.01em;
+  }
+  .next-label b{ color:var(--text); font-weight:600; }
+
+  /* Block progress bar */
+  .block-progress{
+    width:100%; max-width:320px;
+    margin: 4px 0 26px;
+  }
+  .block-progress .row{
+    display:flex; justify-content:space-between;
+    font-family:'Oswald', sans-serif;
+    font-size:11px; letter-spacing:0.14em; text-transform:uppercase;
+    color:var(--muted); margin-bottom:6px;
+  }
+  .bar{
+    height:6px; border-radius:4px; background:var(--line); overflow:hidden;
+  }
+  .bar-fill{
+    height:100%; width:0%; background:linear-gradient(90deg, var(--rest), var(--work));
+    transition: width .4s ease;
+  }
+
+  /* Controls */
+  .controls{
+    display:flex; align-items:center; justify-content:center; gap:16px;
+    margin-top:auto; padding-top: 10px;
+  }
+  .btn{
+    border:none; cursor:pointer;
+    font-family:'Oswald', sans-serif;
+    letter-spacing:0.08em; text-transform:uppercase;
+    display:flex; align-items:center; justify-content:center;
+    transition: transform .15s ease, background .2s ease, opacity .2s ease;
+  }
+  .btn:active{ transform:scale(0.94); }
+  .btn-main{
+    width:82px; height:82px; border-radius:50%;
+    background:var(--work);
+    color:#1a0d0b;
+    font-size:14px; font-weight:700;
+  }
+  .btn-main.is-running{ background:var(--surface-2); color:var(--text); border:2px solid var(--line); }
+  .btn-ghost{
+    width:54px; height:54px; border-radius:50%;
+    background:var(--surface); color:var(--muted);
+    border:1px solid var(--line);
+    font-size:11px; font-weight:600;
+  }
+  .btn-ghost:hover{ color:var(--text); border-color:#33404f; }
+  .btn-ghost svg{ width:20px; height:20px; }
+  .btn-main svg{ width:26px; height:26px; }
+
+  /* Setup screen */
+  .setup{
+    width:100%; max-width:400px;
+    margin-top: 8px;
+    display:flex; flex-direction:column; gap:18px;
+  }
+  .setup h1{
+    font-family:'Oswald', sans-serif;
+    font-size: clamp(30px, 9vw, 40px);
+    font-weight:700; text-transform:uppercase;
+    margin: 6px 0 0;
+    line-height:1.05;
+  }
+  .setup h1 span{ color:var(--work); }
+  .setup p.sub{
+    color:var(--muted); font-size:14px; line-height:1.5; margin:0 0 6px;
+  }
+  .field{
+    background:var(--surface); border:1px solid var(--line);
+    border-radius:14px; padding:14px 16px;
+    display:flex; align-items:center; justify-content:space-between;
+  }
+  .field .label{
+    font-family:'Oswald', sans-serif; font-size:13px;
+    letter-spacing:0.06em; text-transform:uppercase; color:var(--muted);
+  }
+  .field .label small{ display:block; font-family:'Inter'; text-transform:none; letter-spacing:0; color:var(--muted); font-size:11px; margin-top:2px;}
+  .stepper{ display:flex; align-items:center; gap:14px; }
+  .stepper button{
+    width:32px; height:32px; border-radius:50%;
+    border:1px solid var(--line); background:var(--surface-2); color:var(--text);
+    font-size:16px; cursor:pointer; line-height:1;
+  }
+  .stepper span{
+    font-family:'Oswald', sans-serif; font-size:20px; font-weight:600;
+    min-width:54px; text-align:center; font-variant-numeric: tabular-nums;
+  }
+  .exercise-preview{
+    background:var(--surface); border:1px solid var(--line); border-radius:14px;
+    padding:14px 16px;
+  }
+  .exercise-preview .label{
+    font-family:'Oswald', sans-serif; font-size:12px; letter-spacing:0.14em;
+    text-transform:uppercase; color:var(--muted); margin-bottom:10px;
+  }
+  .chips{ display:flex; flex-wrap:wrap; gap:8px; }
+  .chip{
+    font-size:12.5px; padding:6px 11px; border-radius:20px;
+    background:var(--surface-2); color:var(--text); border:1px solid var(--line);
+  }
+  .start-btn{
+    margin-top:6px;
+    background:var(--work); color:#1a0d0b;
+    border:none; border-radius:14px; padding:17px;
+    font-family:'Oswald', sans-serif; font-size:16px; font-weight:700;
+    letter-spacing:0.12em; text-transform:uppercase; cursor:pointer;
+    display:flex; align-items:center; justify-content:center; gap:8px;
+  }
+  .start-btn:active{ transform:scale(0.98); }
+
+  .hidden{ display:none !important; }
+
+  .finish{
+    text-align:center; display:flex; flex-direction:column; align-items:center; gap:14px;
+    margin-top: 20vh;
+  }
+  .finish .big{
+    font-family:'Oswald', sans-serif; font-size:44px; font-weight:700; text-transform:uppercase;
+    color:var(--rest);
+  }
+  .finish p{ color:var(--muted); max-width:280px; }
+</style>
 </head>
-<body class="bg-gray-50 text-gray-800 font-sans antialiased pb-12">
+<body>
 
-    <!-- CABECERA -->
-    <header class="bg-amber-600 text-white shadow-md sticky top-0 z-50">
-        <div class="max-w-4xl mx-auto px-4 py-4 flex justify-between items-center">
-            <div>
-                <h1 class="text-xl font-bold tracking-tight">EULEN</h1>
-                <p class="text-xs text-amber-100 font-medium">Control de Relevos - Mahou SM</p>
-            </div>
-            <div class="bg-amber-700 px-3 py-1.5 rounded-lg text-sm font-semibold flex items-center gap-2">
-                <i data-lucide="calendar" class="w-4 h-4"></i>
-                <span id="current-date-badge">--/--/----</span>
-            </div>
-        </div>
-        
-        <!-- PESTAÑAS -->
-        <div class="max-w-4xl mx-auto px-4 mt-2 flex gap-1 border-b border-amber-500">
-            <button onclick="cambiarPestana('nuevo')" id="tab-nuevo" class="px-4 py-2 font-semibold bg-white text-amber-600 rounded-t-lg transition">
-                📝 Nuevo Parte
-            </button>
-            <button onclick="cambiarPestana('historial')" id="tab-historial" class="px-4 py-2 font-semibold text-amber-100 hover:bg-amber-700 rounded-t-lg transition">
-                🗂️ Histórico Cloud
-            </button>
-        </div>
-    </header>
+<div class="track-bg"></div>
 
-    <main class="max-w-4xl mx-auto px-4 mt-6">
-        
-        <!-- VISTA 1: FORMULARIO -->
-        <div id="vista-nuevo" class="block">
-            <form id="relevo-form" class="space-y-6">
-                <!-- DATOS GENERALES -->
-                <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100 space-y-4">
-                    <h2 class="text-lg font-bold text-gray-900 flex items-center gap-2 border-b pb-2">
-                        <i data-lucide="clipboard-list" class="text-amber-600"></i> Datos del Turno
-                    </h2>
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Jefe de Equipo</label>
-                            <input type="text" id="nombre-jefe" required placeholder="Ej. Juan Pérez" class="w-full px-3 py-2 border border-gray-300 rounded-lg outline-none">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Fecha</label>
-                            <input type="date" id="fecha-turno" required class="w-full px-3 py-2 border border-gray-300 rounded-lg outline-none">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Turno</label>
-                            <select id="turno-seleccionado" required class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white outline-none">
-                                <option value="MAÑANA">MAÑANA</option>
-                                <option value="TARDE">TARDE</option>
-                                <option value="NOCHE">NOCHE</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
+<div class="wrap">
 
-                <!-- PUESTOS -->
-                <div class="space-y-4">
-                    <h2 class="text-lg font-bold text-gray-900 flex items-center gap-2 px-1">
-                        <i data-lucide="factory" class="text-amber-600"></i> Estado de los Puestos
-                    </h2>
-                    <div id="secciones-container" class="space-y-4"></div>
-                </div>
+  <header>
+    <div class="brand">PISTA <b>10/15</b></div>
+    <div class="lap-indicator" id="headerLap"></div>
+  </header>
 
-                <!-- OBSERVACIONES -->
-                <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100 space-y-3">
-                    <h2 class="text-lg font-bold text-gray-900 flex items-center gap-2 border-b pb-2">
-                        <i data-lucide="message-square" class="text-amber-600"></i> Observaciones Finales
-                    </h2>
-                    <textarea id="observaciones-finales" rows="3" placeholder="Notas aclaratorias..." class="w-full px-3 py-2 border border-gray-300 rounded-lg outline-none"></textarea>
-                </div>
+  <!-- SETUP SCREEN -->
+  <div class="setup" id="setupScreen">
+    <h1>Entrena en <span>casa</span>,<br>sin excusas.</h1>
+    <p class="sub">10 segundos al máximo, 15 de descanso. Bloques de 5 minutos con 30 segundos de respiro entre cada uno. Solo tu cuerpo y un aviso sonoro que marca el ritmo.</p>
 
-                <button type="submit" id="btn-guardar" class="w-full bg-amber-600 text-white font-bold py-3 px-4 rounded-xl shadow hover:bg-amber-700 transition flex items-center justify-center gap-2">
-                    <i data-lucide="cloud-upload" class="w-5 h-5"></i> Guardar Turno y Fotos en la Nube
-                </button>
-            </form>
-        </div>
+    <div class="field">
+      <div class="label">Bloques<small>Tandas de 5 minutos</small></div>
+      <div class="stepper">
+        <button id="blocksMinus" aria-label="Menos bloques">–</button>
+        <span id="blocksVal">3</span>
+        <button id="blocksPlus" aria-label="Más bloques">+</button>
+      </div>
+    </div>
 
-        <!-- VISTA 2: HISTÓRICO -->
-        <div id="vista-historial" class="hidden space-y-4">
-            <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100 flex flex-col sm:flex-row justify-between items-center gap-4">
-                <h2 class="text-lg font-bold text-gray-900">Historial en la Nube</h2>
-                <div class="flex items-center gap-2">
-                    <label class="text-sm text-gray-600 font-medium">Filtrar por fecha:</label>
-                    <input type="date" id="filtro-historial" onchange="renderizarHistorialFiltrado()" class="px-3 py-1.5 border border-gray-300 rounded-lg outline-none">
-                </div>
-            </div>
+    <div class="field">
+      <div class="label">Sonido<small>Avisos de cambio</small></div>
+      <div class="stepper">
+        <button id="soundToggle" style="width:auto; padding:0 14px; border-radius:16px;">Activado</button>
+      </div>
+    </div>
 
-            <!-- Div de carga -->
-            <div id="loading-spinner" class="text-center py-12 hidden">
-                <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-amber-600 border-t-transparent"></div>
-                <p class="text-sm text-gray-500 mt-2 font-medium">Descargando partes y evidencias de Mahou Drive...</p>
-            </div>
+    <div class="exercise-preview">
+      <div class="label">Ejercicios fundamentales</div>
+      <div class="chips" id="chipList"></div>
+    </div>
 
-            <div id="lista-historial" class="space-y-4"></div>
-        </div>
+    <button class="start-btn" id="startBtn">
+      <svg viewBox="0 0 24 24" fill="none" width="18" height="18"><path d="M6 4L19 12L6 20V4Z" fill="currentColor"/></svg>
+      Empezar sesión
+    </button>
+  </div>
 
-    </main>
+  <!-- TIMER SCREEN -->
+  <div class="hidden" id="timerScreen" style="width:100%; display:flex; flex-direction:column; align-items:center; flex:1;">
+    <div class="phase-row">
+      <div class="phase-dot" id="phaseDot"></div>
+      <div class="phase-label" id="phaseLabel">PREPARADOS</div>
+    </div>
+    <div class="exercise-name" id="exerciseName">—</div>
 
-    <script>
-        // Cambia esto por tu URL de implementación de Google Apps Script
-        const WEB_APP_URL = "https://script.google.com/a/macros/eulen.com/s/AKfycbyleaTqFk7Q6OM69TUmdRP6igHMDExSEotJLLlXd1p5YWt185XHST2tROVX7MwEnw96/exec";
+    <div class="ring-zone">
+      <svg viewBox="0 0 200 200">
+        <circle class="ring-track" cx="100" cy="100" r="88"></circle>
+        <circle class="ring-progress" id="ringProgress" cx="100" cy="100" r="88"></circle>
+      </svg>
+      <div class="ring-center">
+        <div class="big-time" id="bigTime">10</div>
+        <div class="next-label" id="nextLabel">&nbsp;</div>
+      </div>
+    </div>
 
-        const puestos = [
-            { id: "linea-1", nombre: "Línea 1" }, { id: "linea-2", nombre: "Línea 2" },
-            { id: "linea-3", nombre: "Línea 3" }, { id: "linea-4", nombre: "Línea 4" },
-            { id: "linea-5", nombre: "Línea 5" }, { id: "carga-descarga", nombre: "Carga y descarga" },
-            { id: "carretillas", nombre: "Carretillas" }
-        ];
+    <div class="block-progress">
+      <div class="row">
+        <span id="blockLabel">Bloque 1 / 3</span>
+        <span id="blockTimeLabel">5:00 restantes</span>
+      </div>
+      <div class="bar"><div class="bar-fill" id="barFill"></div></div>
+    </div>
 
-        let cacheRegistros = [];
+    <div class="controls">
+      <button class="btn btn-ghost" id="resetBtn" aria-label="Reiniciar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>
+      </button>
+      <button class="btn btn-main" id="playBtn" aria-label="Pausar / Reanudar">
+        <svg id="playIcon" viewBox="0 0 24 24" fill="currentColor"><path d="M6 4L19 12L6 20V4Z"/></svg>
+      </button>
+      <button class="btn btn-ghost" id="skipBtn" aria-label="Saltar fase">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 4l10 8-10 8V4z"/><path d="M19 5v14"/></svg>
+      </button>
+    </div>
+  </div>
 
-        document.addEventListener("DOMContentLoaded", () => {
-            renderSecciones();
-            establecerFechaYTurnoAutomatico();
-            lucide.createIcons();
-        });
+  <!-- FINISH SCREEN -->
+  <div class="hidden finish" id="finishScreen">
+    <div class="big">Sesión completa</div>
+    <p id="finishSummary">Has terminado tus bloques de hoy. Buen trabajo.</p>
+    <button class="start-btn" id="restartBtn" style="width:200px;">Volver a empezar</button>
+  </div>
 
-        function cambiarPestana(pestana) {
-            const vistaNuevo = document.getElementById('vista-nuevo');
-            const vistaHistorial = document.getElementById('vista-historial');
-            const tabNuevo = document.getElementById('tab-nuevo');
-            const tabHistorial = document.getElementById('tab-historial');
+</div>
 
-            if (pestana === 'nuevo') {
-                vistaNuevo.classList.remove('hidden');
-                vistaHistorial.classList.add('hidden');
-                tabNuevo.className = "px-4 py-2 font-semibold bg-white text-amber-600 rounded-t-lg transition";
-                tabHistorial.className = "px-4 py-2 font-semibold text-amber-100 hover:bg-amber-700 rounded-t-lg transition";
-            } else {
-                vistaNuevo.classList.add('hidden');
-                vistaHistorial.classList.remove('hidden');
-                tabHistorial.className = "px-4 py-2 font-semibold bg-white text-amber-600 rounded-t-lg transition";
-                tabNuevo.className = "px-4 py-2 font-semibold text-amber-100 hover:bg-amber-700 rounded-t-lg transition";
-                consultarBaseDeDatos();
-            }
+<script>
+(function(){
+  // ---------- Config ----------
+  const WORK = 10;
+  const REST = 15;
+  const BLOCK_SECONDS = 5 * 60; // 300s target per block
+  const BLOCK_REST = 30;
+
+  const EXERCISES = [
+    "Flexiones",
+    "Sentadillas",
+    "Abdominales",
+    "Zancadas",
+    "Plancha",
+    "Burpees",
+    "Salto de tijera",
+    "Escaladores",
+    "Puente de glúteos",
+    "Elevación de rodillas"
+  ];
+
+  let numBlocks = 3;
+  let soundOn = true;
+
+  // ---------- Setup screen wiring ----------
+  const chipList = document.getElementById('chipList');
+  EXERCISES.forEach(e=>{
+    const c = document.createElement('div');
+    c.className='chip'; c.textContent=e;
+    chipList.appendChild(c);
+  });
+
+  const blocksVal = document.getElementById('blocksVal');
+  document.getElementById('blocksMinus').onclick = ()=>{
+    numBlocks = Math.max(1, numBlocks-1); blocksVal.textContent = numBlocks;
+  };
+  document.getElementById('blocksPlus').onclick = ()=>{
+    numBlocks = Math.min(12, numBlocks+1); blocksVal.textContent = numBlocks;
+  };
+  const soundToggle = document.getElementById('soundToggle');
+  soundToggle.onclick = ()=>{
+    soundOn = !soundOn;
+    soundToggle.textContent = soundOn ? 'Activado' : 'Silencio';
+  };
+
+  // ---------- Audio ----------
+  let actx = null;
+  function ensureAudio(){
+    if(!actx){
+      actx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if(actx.state === 'suspended') actx.resume();
+  }
+  function beep(freq, duration, delay, type, gain){
+    if(!soundOn || !actx) return;
+    const t0 = actx.currentTime + (delay||0);
+    const osc = actx.createOscillator();
+    const g = actx.createGain();
+    osc.type = type || 'sine';
+    osc.frequency.setValueAtTime(freq, t0);
+    g.gain.setValueAtTime(0, t0);
+    g.gain.linearRampToValueAtTime(gain||0.22, t0+0.02);
+    g.gain.linearRampToValueAtTime(0, t0+duration);
+    osc.connect(g); g.connect(actx.destination);
+    osc.start(t0); osc.stop(t0+duration+0.02);
+  }
+  function cueStartWork(){ beep(880,0.12,0,'square',0.25); beep(1180,0.14,0.14,'square',0.25); if(navigator.vibrate) navigator.vibrate([90,40,90]); }
+  function cueStartRest(){ beep(520,0.22,0,'sine',0.2); if(navigator.vibrate) navigator.vibrate(60); }
+  function cueBlockRest(){ beep(660,0.15,0,'triangle',0.22); beep(440,0.15,0.16,'triangle',0.22); beep(880,0.22,0.32,'triangle',0.22); if(navigator.vibrate) navigator.vibrate([80,60,80,60,140]); }
+  function cueTick(){ beep(760,0.05,0,'sine',0.1); }
+  function cueFinish(){ beep(523,0.16,0,'triangle',0.22); beep(659,0.16,0.17,'triangle',0.22); beep(784,0.28,0.34,'triangle',0.24); if(navigator.vibrate) navigator.vibrate([100,60,100,60,200]); }
+
+  function announceNext(name){
+    if(!soundOn) return;
+    if(!('speechSynthesis' in window)) return;
+    try{
+      speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(name);
+      u.lang = 'es-ES';
+      u.rate = 1.02;
+      u.volume = 0.9;
+      setTimeout(()=>speechSynthesis.speak(u), 350);
+    }catch(e){}
+  }
+
+  // ---------- State machine ----------
+  // phases: 'work', 'rest', 'blockrest'
+  const RING_R = 88;
+  const RING_C = 2*Math.PI*RING_R;
+  const ringProgress = document.getElementById('ringProgress');
+  ringProgress.style.strokeDasharray = RING_C;
+
+  const phaseDot = document.getElementById('phaseDot');
+  const phaseLabel = document.getElementById('phaseLabel');
+  const exerciseName = document.getElementById('exerciseName');
+  const bigTime = document.getElementById('bigTime');
+  const nextLabel = document.getElementById('nextLabel');
+  const blockLabel = document.getElementById('blockLabel');
+  const blockTimeLabel = document.getElementById('blockTimeLabel');
+  const barFill = document.getElementById('barFill');
+  const headerLap = document.getElementById('headerLap');
+  const playBtn = document.getElementById('playBtn');
+  const playIcon = document.getElementById('playIcon');
+
+  let exIndex = 0;
+  let block = 1;
+  let blockElapsed = 0; // seconds elapsed within current block (work+rest only)
+  let phase = 'work';
+  let secondsLeft = WORK;
+  let running = false;
+  let timerId = null;
+  let sessionDone = false;
+
+  function colorFor(p){
+    if(p==='work') return getComputedStyle(document.documentElement).getPropertyValue('--work').trim();
+    if(p==='rest') return getComputedStyle(document.documentElement).getPropertyValue('--rest').trim();
+    return getComputedStyle(document.documentElement).getPropertyValue('--block').trim();
+  }
+  function phaseTotal(p){
+    if(p==='work') return WORK;
+    if(p==='rest') return REST;
+    return BLOCK_REST;
+  }
+
+  function currentExercise(){ return EXERCISES[exIndex % EXERCISES.length]; }
+  function peekNextExercise(){ return EXERCISES[(exIndex+1) % EXERCISES.length]; }
+
+  function render(){
+    const color = colorFor(phase);
+    document.body.style.setProperty('--dummy', '0'); // no-op, keeps engine calm
+    ringProgress.style.stroke = color;
+    phaseDot.style.background = color;
+    phaseDot.style.boxShadow = `0 0 0 6px ${color}22`;
+
+    if(phase==='work'){
+      phaseLabel.textContent = '¡A tope!';
+      exerciseName.textContent = currentExercise();
+      exerciseName.style.color = color;
+      nextLabel.innerHTML = `Descanso 15s`;
+    } else if(phase==='rest'){
+      phaseLabel.textContent = 'Descanso · prepárate';
+      exerciseName.textContent = peekNextExercise();
+      exerciseName.style.color = color;
+      nextLabel.innerHTML = `Respira, quedan 15s`;
+    } else {
+      phaseLabel.textContent = 'Pausa de bloque';
+      exerciseName.textContent = 'Bebe agua';
+      exerciseName.style.color = color;
+      nextLabel.innerHTML = block < numBlocks ? `Bloque ${block+1} de ${numBlocks} a continuación` : `Último tramo`;
+    }
+
+    bigTime.textContent = secondsLeft;
+    const total = phaseTotal(phase);
+    const frac = secondsLeft / total;
+    ringProgress.style.strokeDashoffset = RING_C * (1-frac);
+
+    blockLabel.textContent = `Bloque ${block} / ${numBlocks}`;
+    const remainInBlock = Math.max(0, BLOCK_SECONDS - blockElapsed);
+    const mm = Math.floor(remainInBlock/60);
+    const ss = String(remainInBlock%60).padStart(2,'0');
+    blockTimeLabel.textContent = phase==='blockrest' ? 'Descanso entre bloques' : `${mm}:${ss} restantes`;
+    barFill.style.width = phase==='blockrest' ? '100%' : `${Math.min(100, (blockElapsed/BLOCK_SECONDS)*100)}%`;
+
+    headerLap.innerHTML = `<b>${block}</b> / ${numBlocks}`;
+  }
+
+  function pulseTime(){
+    bigTime.classList.remove('pulse');
+    void bigTime.offsetWidth;
+    bigTime.classList.add('pulse');
+  }
+
+  function advancePhase(){
+    if(phase==='work'){
+      phase='rest'; secondsLeft = REST;
+      cueStartRest();
+      announceNext(peekNextExercise());
+    } else if(phase==='rest'){
+      blockElapsed += (WORK+REST);
+      exIndex++;
+      if(blockElapsed >= BLOCK_SECONDS){
+        if(block >= numBlocks){
+          finishSession();
+          return;
         }
+        phase='blockrest'; secondsLeft = BLOCK_REST;
+        cueBlockRest();
+      } else {
+        phase='work'; secondsLeft = WORK;
+        cueStartWork();
+      }
+    } else if(phase==='blockrest'){
+      block++;
+      blockElapsed = 0;
+      phase='work'; secondsLeft = WORK;
+      cueStartWork();
+    }
+    render();
+  }
 
-        function renderSecciones() {
-            document.getElementById("secciones-container").innerHTML = puestos.map(puesto => `
-                <div class="bg-white p-4 rounded-xl border border-gray-200 space-y-3">
-                    <h3 class="font-bold text-gray-800">${puesto.nombre}</h3>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        <textarea id="texto-${puesto.id}" rows="2" placeholder="Sin incidencias..." class="w-full px-3 py-2 border border-gray-300 rounded-lg outline-none text-sm"></textarea>
-                        
-                        <div class="flex flex-col justify-center border border-dashed border-gray-200 rounded-lg p-2 bg-gray-50">
-                            <div class="flex items-center gap-2">
-                                <label class="cursor-pointer bg-white border text-xs font-semibold text-gray-700 px-3 py-1.5 rounded shadow-sm hover:bg-gray-50">
-                                    📸 Hacer / Subir Foto
-                                    <input type="file" id="foto-${puesto.id}" accept="image/*" class="hidden" onchange="comprimirYPrevisualizar(this, '${puesto.id}')">
-                                </label>
-                                <button type="button" id="btn-borrar-${puesto.id}" onclick="borrarFoto('${puesto.id}')" class="hidden text-red-500 hover:text-red-700">
-                                    <i data-lucide="trash-2" class="w-4 h-4"></i>
-                                </button>
-                            </div>
-                            <div class="mt-2 hidden" id="preview-container-${puesto.id}">
-                                <img id="preview-${puesto.id}" src="" class="h-16 w-auto object-cover rounded border">
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            `).join('');
-        }
+  function tick(){
+    secondsLeft--;
+    if(secondsLeft <= 0){
+      advancePhase();
+    } else {
+      if(secondsLeft <=3 && phase!=='blockrest') cueTick();
+      render();
+    }
+    pulseTime();
+  }
 
-        // COMPRESIÓN DE IMAGEN EN CLIENTE (Canvas)
-        function comprimirYPrevisualizar(input, id) {
-            const file = input.files[0];
-            if (!file) return;
+  function startTimer(){
+    if(timerId) return;
+    timerId = setInterval(tick, 1000);
+  }
+  function stopTimer(){
+    clearInterval(timerId); timerId=null;
+  }
 
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const img = new Image();
-                img.onload = function() {
-                    const canvas = document.createElement('canvas');
-                    const MAX_WIDTH = 800; // Redimensionamos la foto para que pese poquísimo
-                    let width = img.width;
-                    let height = img.height;
+  function finishSession(){
+    stopTimer();
+    running = false;
+    sessionDone = true;
+    cueFinish();
+    document.getElementById('timerScreen').classList.add('hidden');
+    document.getElementById('finishScreen').classList.remove('hidden');
+    const mins = numBlocks*5;
+    document.getElementById('finishSummary').textContent =
+      `${numBlocks} bloque${numBlocks>1?'s':''} completados · ~${mins} minutos de trabajo real. Buen trabajo.`;
+  }
 
-                    if (width > MAX_WIDTH) {
-                        height *= MAX_WIDTH / width;
-                        width = MAX_WIDTH;
-                    }
-                    canvas.width = width;
-                    canvas.height = height;
+  function setPlaying(p){
+    running = p;
+    if(running){
+      startTimer();
+      playIcon.innerHTML = '<rect x="5" y="4" width="5" height="16" rx="1.5"/><rect x="14" y="4" width="5" height="16" rx="1.5"/>';
+      playBtn.classList.remove('is-running');
+    } else {
+      stopTimer();
+      playIcon.innerHTML = '<path d="M6 4L19 12L6 20V4Z"/>';
+      playBtn.classList.add('is-running');
+    }
+  }
 
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(img, 0, 0, width, height);
+  // ---------- Controls ----------
+  document.getElementById('startBtn').onclick = ()=>{
+    ensureAudio();
+    document.getElementById('setupScreen').classList.add('hidden');
+    document.getElementById('finishScreen').classList.add('hidden');
+    document.getElementById('timerScreen').classList.remove('hidden');
+    exIndex=0; block=1; blockElapsed=0; phase='work'; secondsLeft=WORK; sessionDone=false;
+    render();
+    cueStartWork();
+    setPlaying(true);
+  };
 
-                    // Convertimos a JPG con calidad media (70%) para una subida instantánea
-                    const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
-                    
-                    // Almacenamos temporalmente el texto de la foto en el propio input
-                    input.dataset.base64 = dataUrl;
+  document.getElementById('restartBtn').onclick = ()=>{
+    document.getElementById('finishScreen').classList.add('hidden');
+    document.getElementById('setupScreen').classList.remove('hidden');
+  };
 
-                    document.getElementById(`preview-${id}`).src = dataUrl;
-                    document.getElementById(`preview-container-${id}`).classList.remove('hidden');
-                    document.getElementById(`btn-borrar-${id}`).classList.remove('hidden');
-                }
-                img.src = e.target.result;
-            }
-            reader.readAsDataURL(file);
-        }
+  playBtn.onclick = ()=>{
+    ensureAudio();
+    setPlaying(!running);
+  };
 
-        function borrarFoto(id) {
-            const input = document.getElementById(`foto-${id}`);
-            input.value = "";
-            delete input.dataset.base64;
-            document.getElementById(`preview-container-${id}`).classList.add('hidden');
-            document.getElementById(`btn-borrar-${id}`).classList.add('hidden');
-        }
+  document.getElementById('resetBtn').onclick = ()=>{
+    stopTimer();
+    exIndex=0; block=1; blockElapsed=0; phase='work'; secondsLeft=WORK;
+    render();
+    setPlaying(true);
+  };
 
-        function establecerFechaYTurnoAutomatico() {
-            const hoy = new Date();
-            const mes = String(hoy.getMonth() + 1).padStart(2, '0');
-            const dia = String(hoy.getDate()).padStart(2, '0');
-            document.getElementById("fecha-turno").value = `${hoy.getFullYear()}-${mes}-${dia}`;
-            document.getElementById("current-date-badge").innerText = `${dia}/${mes}/${hoy.getFullYear()}`;
+  document.getElementById('skipBtn').onclick = ()=>{
+    advancePhase();
+  };
 
-            const hora = hoy.getHours();
-            let turno = "MAÑANA"; 
-            if (hora >= 14 && hora < 22) turno = "TARDE";
-            else if (hora >= 22 || hora < 6) turno = "NOCHE";
-            document.getElementById("turno-seleccionado").value = turno;
-        }
+  // Keep tab title as a lightweight live indicator
+  setInterval(()=>{
+    if(!running || sessionDone) return;
+  }, 1000);
 
-        // GUARDADO EN LA NUBE
-        document.getElementById("relevo-form").addEventListener("submit", (e) => {
-            e.preventDefault();
-            
-            const btn = document.getElementById("btn-guardar");
-            btn.disabled = true;
-            btn.innerText = "Subiendo reporte y fotos a Drive...";
+})();
+</script>
 
-            const reporte = {
-                fecha: document.getElementById("fecha-turno").value,
-                turno: document.getElementById("turno-seleccionado").value,
-                jefe: document.getElementById("nombre-jefe").value,
-                puestos: puestos.map(p => {
-                    const inputFoto = document.getElementById(`foto-${p.id}`);
-                    return {
-                        nombre: p.nombre,
-                        novedades: document.getElementById(`texto-${p.id}`).value || "Sin incidencias",
-                        fotoBase64: inputFoto.dataset.base64 || "" // Enviamos la foto si existe
-                    };
-                }),
-                observaciones: document.getElementById("observaciones-finales").value
-            };
-
-            fetch(WEB_APP_URL, {
-                method: "POST",
-                mode: "no-cors",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(reporte)
-            })
-            .then(() => {
-                alert("¡Parte y fotos guardados con éxito en la nube de Mahou!");
-                document.getElementById("relevo-form").reset();
-                puestos.forEach(p => borrarFoto(p.id));
-                establecerFechaYTurnoAutomatico();
-                btn.disabled = false;
-                btn.innerHTML = `<i data-lucide="cloud-upload" class="w-5 h-5"></i> Guardar Turno y Fotos en la Nube`;
-                lucide.createIcons();
-                cambiarPestana('historial');
-            })
-            .catch(err => {
-                alert("Error de conexión con la base de datos.");
-                btn.disabled = false;
-            });
-        });
-
-        function consultarBaseDeDatos() {
-            const contenedor = document.getElementById("lista-historial");
-            const spinner = document.getElementById("loading-spinner");
-            
-            contenedor.innerHTML = "";
-            spinner.classList.remove("hidden");
-
-            fetch(WEB_APP_URL)
-            .then(res => res.json())
-            .then(data => {
-                cacheRegistros = data;
-                spinner.classList.add("hidden");
-                renderizarHistorialFiltrado();
-            })
-            .catch(err => {
-                spinner.classList.add("hidden");
-                contenedor.innerHTML = `<div class="p-4 bg-red-50 text-red-600 rounded-xl border text-center">Error al conectar con la base de datos cloud.</div>`;
-            });
-        }
-
-        function renderizarHistorialFiltrado() {
-            const contenedor = document.getElementById("lista-historial");
-            const filtroFecha = document.getElementById("filtro-historial").value;
-            contenedor.innerHTML = "";
-
-            let registros = [...cacheRegistros];
-            registros.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
-
-            if (filtroFecha) {
-                registros = registros.filter(r => r.fecha === filtroFecha);
-            }
-
-            if (registros.length === 0) {
-                contenedor.innerHTML = `<div class="p-8 text-center text-gray-500 bg-white rounded-xl border border-dashed border-gray-300">No hay partes registrados.</div>`;
-                return;
-            }
-
-            registros.forEach(reg => {
-                const [ano, mes, dia] = reg.fecha.split('-');
-                const fechaEspanol = `${dia}/${mes}/${ano}`;
-
-                let htmlPuestos = reg.puestos.map(p => {
-                    const esIncidencia = p.novedades !== "Sin incidencias" && p.novedades.trim() !== "";
-                    const colorPunto = esIncidencia ? "bg-red-500" : "bg-green-500";
-                    const textoIncidencia = esIncidencia ? p.novedades : '<span class="text-gray-400 italic">Sin incidencias</span>';
-                    
-                    // Si el registro guardado incluye una URL válida de foto en Google Drive, la mostramos
-                    const htmlFoto = (p.foto && p.foto.startsWith("http")) 
-                        ? `<div class="mt-2"><img src="${p.foto}" alt="Evidencia" class="h-32 w-auto object-cover rounded border shadow-sm cursor-zoom-in" onclick="window.open('${p.foto}', '_blank')"></div>` 
-                        : '';
-                    
-                    return `
-                        <div class="flex items-start gap-2 mb-3 border-b border-gray-50 pb-3">
-                            <div class="w-2 h-2 rounded-full mt-1.5 ${colorPunto}"></div>
-                            <div class="flex-1">
-                                <span class="font-bold text-gray-700 text-sm">${p.nombre}:</span> 
-                                <span class="text-gray-600 text-sm">${textoIncidencia}</span>
-                                ${htmlFoto}
-                            </div>
-                        </div>`;
-                }).join('');
-
-                contenedor.innerHTML += `
-                    <div class="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
-                        <div class="flex justify-between items-center border-b pb-3 mb-3">
-                            <div>
-                                <span class="bg-gray-100 text-gray-800 text-xs font-bold px-2 py-1 rounded border">📅 ${fechaEspanol}</span>
-                                <span class="bg-amber-100 text-amber-800 text-xs font-bold px-2 py-1 rounded ml-1">⏰ Turno: ${reg.turno}</span>
-                            </div>
-                            <span class="text-sm font-semibold text-gray-600">👤 ${reg.jefe}</span>
-                        </div>
-                        <div class="pl-1">${htmlPuestos}</div>
-                        ${reg.observaciones ? `<div class="mt-2 p-3 bg-gray-50 text-sm rounded-lg text-gray-700 border border-gray-100"><b>Observaciones:</b> ${reg.observaciones}</div>` : ''}
-                    </div>
-                `;
-            });
-        }
-    </script>
 </body>
 </html>
