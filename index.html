@@ -34,6 +34,7 @@
     --rest-dim: #123c38;
     --block: #FFC24D;
     --block-dim: #3f3018;
+    --prepare: #7C9CFF;
     --text: #F4F6F9;
     --muted: #7C879B;
     --line: #232A34;
@@ -151,12 +152,20 @@
   }
   .next-label b{ color:var(--text); font-weight:600; }
 
-  .illustration-slot{
-    width: 132px; height: 108px;
-    display:flex; align-items:center; justify-content:center;
-    margin: 2px 0 12px;
+  .desc-card{
+    width:100%; max-width:320px;
+    background:var(--surface); border:1px solid var(--line); border-left:3px solid var(--rest);
+    border-radius:12px; padding:12px 14px;
+    margin: 2px 0 16px;
+    max-height:132px; overflow-y:auto;
   }
-  .illustration-slot svg{ width:100%; height:100%; overflow:visible; }
+  .desc-category{
+    font-family:'Oswald', sans-serif; font-size:10.5px; letter-spacing:0.12em;
+    text-transform:uppercase; color:var(--rest); margin-bottom:4px;
+  }
+  .desc-text{
+    font-size:13px; line-height:1.48; color:var(--text); margin:0;
+  }
 
   /* Block progress bar */
   .block-progress{
@@ -257,6 +266,16 @@
     font-size:12.5px; padding:6px 11px; border-radius:20px;
     background:var(--surface-2); color:var(--text); border:1px solid var(--line);
   }
+  .chip-group + .chip-group{ margin-top:12px; }
+  .chip-group-title{
+    font-family:'Oswald', sans-serif; font-size:10.5px; letter-spacing:0.1em;
+    text-transform:uppercase; color:var(--muted); margin-bottom:7px;
+  }
+  .safety-note{
+    background:var(--block-dim); border:1px solid #5a481f; border-radius:14px;
+    padding:13px 15px; font-size:12.5px; line-height:1.55; color:#ffdca0;
+  }
+  .safety-note b{ color:var(--block); }
   .start-btn{
     margin-top:6px;
     background:var(--work); color:#1a0d0b;
@@ -372,14 +391,14 @@
 <div class="wrap">
 
   <header>
-    <div class="brand">PISTA <b>10/15</b></div>
+    <div class="brand">PISTA <b>15/15</b></div>
     <div class="lap-indicator" id="headerLap"></div>
   </header>
 
   <!-- SETUP SCREEN -->
   <div class="setup" id="setupScreen">
     <h1>Entrena en <span>casa</span>,<br>sin excusas.</h1>
-    <p class="sub">10 segundos al máximo, 15 de descanso. Bloques de 5 minutos con 30 segundos de respiro entre cada uno. Solo tu cuerpo y un aviso sonoro que marca el ritmo.</p>
+    <p class="sub">15 segundos al máximo, 15 de descanso. Bloques de 5 minutos (10 series) con 30 segundos de respiro entre cada uno, y unos segundos de preparación antes de arrancar. 19 ejercicios pensados para no cargar la cadera, dosificados para que con el tiempo hagas todos por igual.</p>
 
     <div class="field">
       <div class="label">Bloques<small>Tandas de 5 minutos</small></div>
@@ -398,8 +417,12 @@
     </div>
 
     <div class="exercise-preview">
-      <div class="label">Ejercicios fundamentales</div>
-      <div class="chips" id="chipList"></div>
+      <div class="label">Ejercicios de la rutina (19)</div>
+      <div id="chipList"></div>
+    </div>
+
+    <div class="safety-note">
+      <b>Cadera:</b> si algún ejercicio te "engancha" o molesta, sáltalo o cámbialo por el puente de glúteo. Evita la flexión profunda de cadera combinada con rotación y el impacto alto.
     </div>
 
     <button class="start-btn" id="startBtn">
@@ -418,7 +441,10 @@
     </div>
     <div class="exercise-name" id="exerciseName">—</div>
 
-    <div class="illustration-slot hidden" id="illustrationSlot"></div>
+    <div class="desc-card hidden" id="descCard">
+      <div class="desc-category" id="descCategory">—</div>
+      <p class="desc-text" id="descText">—</p>
+    </div>
 
     <div class="ring-zone">
       <svg viewBox="0 0 200 200">
@@ -490,203 +516,100 @@
 <script>
 (function(){
   // ---------- Config ----------
-  const WORK = 10;
+  const WORK = 15;
   const REST = 15;
+  const PREPARE = 10;
   const BLOCK_SECONDS = 5 * 60; // 300s target per block
   const BLOCK_REST = 30;
 
-  const EXERCISES = [
-    "Flexiones",
-    "Sentadilla parcial",
-    "Abdominales",
-    "Plancha",
-    "Puente de glúteos",
-    "Zancada corta",
-    "Marcha en el sitio",
-    "Elevación lateral de pierna",
-    "Patada de glúteo",
-    "Sentadilla a silla",
-    "Elevación de talones",
-    "Giro de tronco de pie",
-    "Superman suave",
-    "Círculos de brazos"
+  // Curated from the user's own routine document: bodyweight, low-impact, hip-replacement-friendly.
+  // paired:true => shown as two consecutive rounds (izquierda/derecha) but counts as ONE draw
+  // in the rotation pool, so it stays balanced against single-sided exercises long-term.
+  const EXERCISE_POOL = [
+    { name:"Sentadillas", category:"Piernas y glúteos", paired:false,
+      description:"De pie, pies a la anchura de las caderas. Baja flexionando rodillas y llevando la cadera atrás hasta que los muslos queden paralelos al suelo (profundidad media). Sube empujando con los talones." },
+    { name:"Sentadilla isométrica en pared", category:"Piernas y glúteos", paired:false,
+      description:"Espalda apoyada en la pared, deslízate hacia abajo hasta que las rodillas queden a ~90°. Aguanta la posición sin moverte." },
+    { name:"Zancada estática", category:"Piernas y glúteos", paired:true,
+      description:"Un pie delante y otro detrás. Baja la rodilla trasera hacia el suelo (sin tocar) y sube. Mantén el mismo pie delante durante los 15\"." },
+    { name:"Zancada inversa", category:"Piernas y glúteos", paired:false,
+      description:"Desde de pie, da un paso hacia atrás y baja la rodilla trasera; vuelve al centro. Más amable con la cadera que la zancada hacia delante." },
+    { name:"Puente de glúteo", category:"Piernas y glúteos", paired:false,
+      description:"Tumbado boca arriba, rodillas dobladas y pies apoyados. Eleva la cadera apretando los glúteos hasta alinear hombros-cadera-rodillas. Baja controlado." },
+    { name:"Abducción de pierna de pie", category:"Piernas y glúteos", paired:false,
+      description:"De pie, apoyado en una pared o silla. Eleva una pierna recta hacia el lateral sin inclinar el tronco. Trabaja el glúteo medio (clave para la prótesis)." },
+    { name:"Elevación de talones", category:"Piernas y glúteos", paired:false,
+      description:"De pie, sube sobre las puntas de los pies elevando los talones y baja despacio. Fortalece los gemelos." },
+    { name:"Equilibrio a una pierna", category:"Piernas y glúteos", paired:false,
+      description:"De pie, levanta una pierna y mantén el equilibrio sobre la otra. Ten un apoyo cerca por seguridad. Mejora la estabilidad y propiocepción de la cadera." },
+
+    { name:"Plancha frontal", category:"Core / abdomen", paired:false,
+      description:"Apoyo en antebrazos y puntas de los pies, cuerpo recto como una tabla. Aprieta abdomen y glúteos; no hundas ni levantes la cadera." },
+    { name:"Plancha lateral", category:"Core / abdomen", paired:true,
+      description:"De lado, apoyo en un antebrazo y el canto del pie. Eleva la cadera y mantén el cuerpo alineado." },
+    { name:"Plancha con toques de hombro", category:"Core / abdomen", paired:false,
+      description:"Desde plancha alta (brazos estirados), toca con una mano el hombro contrario, alternando, sin balancear la cadera." },
+    { name:"Bird-dog", category:"Core / abdomen", paired:false,
+      description:"A cuatro patas. Extiende a la vez brazo y pierna contrarios hasta la horizontal, mantén un instante y alterna con el otro lado." },
+    { name:"Dead bug (bicho muerto)", category:"Core / abdomen", paired:false,
+      description:"Boca arriba, brazos hacia el techo y rodillas a 90°. Baja brazo y pierna contrarios sin arquear la zona lumbar, y vuelve. Alterna." },
+    { name:"Crunch corto", category:"Core / abdomen", paired:false,
+      description:"Boca arriba, rodillas dobladas. Eleva ligeramente hombros y omóplatos contrayendo el abdomen. No lleves las rodillas al pecho." },
+    { name:"Hollow hold suave", category:"Core / abdomen", paired:false,
+      description:"Boca arriba, eleva un poco piernas y hombros formando una ligera 'banana', con la zona lumbar pegada al suelo. Mantén la posición." },
+
+    { name:"Flexiones", category:"Tren superior", paired:false,
+      description:"Manos algo más anchas que los hombros, cuerpo recto. Baja doblando los codos y empuja para subir. Puedes hacerlas de rodillas como regresión." },
+    { name:"Flexiones inclinadas", category:"Tren superior", paired:false,
+      description:"Manos apoyadas en una mesa o pared con el cuerpo inclinado. Misma técnica que la flexión pero más fáciles." },
+    { name:"Fondos de tríceps en silla", category:"Tren superior", paired:false,
+      description:"Sentado al borde de una silla, manos agarrando el borde. Desliza la cadera fuera del asiento y baja doblando los codos; sube estirándolos." },
+    { name:"Superman", category:"Tren superior", paired:false,
+      description:"Boca abajo, brazos estirados al frente. Eleva a la vez brazos, pecho y piernas unos centímetros, aprieta la zona lumbar y baja controlado." }
   ];
+  const EXERCISE_META = {};
+  EXERCISE_POOL.forEach(e=>{ EXERCISE_META[e.name] = e; });
 
   let numBlocks = 3;
   let soundOn = true;
 
-  // ---------- Animated exercise icons (shown during rest, previewing the next move) ----------
-  // Moving/emphasis parts = teal (--rest), static support parts = --text, ground = --line.
-  const MOVE = 'style="fill:none;stroke:var(--rest);stroke-width:6;stroke-linecap:round"';
-  const HOLD = 'style="fill:none;stroke:var(--text);stroke-width:6;stroke-linecap:round"';
-  const HEAD = (cx,cy)=>`<circle cx="${cx}" cy="${cy}" r="8" style="fill:var(--text)"/>`;
-  const GROUND = `<line x1="8" y1="90" x2="92" y2="90" style="stroke:var(--line);stroke-width:3;stroke-linecap:round"/>`;
-  const svgWrap = (inner)=>`<svg viewBox="0 0 100 100" width="100%" height="100%">${GROUND}${inner}</svg>`;
+  function displayNameFor(entry){
+    if(!entry) return '—';
+    return entry.side ? `${entry.key} (pierna ${entry.side})` : entry.key;
+  }
 
-  const EXERCISE_ICONS = {
-    "Flexiones": svgWrap(`
-      <g><animateTransform attributeName="transform" type="translate" values="0 0;0 7;0 0" dur="1.5s" repeatCount="indefinite"/>
-        ${HEAD(20,55)}
-        <line x1="27" y1="55" x2="80" y2="55" ${HOLD}/>
-        <line x1="80" y1="55" x2="90" y2="63" ${HOLD}/>
-        <line x1="38" y1="55" x2="30" y2="76" ${MOVE}/>
-        <line x1="60" y1="55" x2="68" y2="76" ${MOVE}/>
-      </g>`),
-
-    "Sentadilla parcial": svgWrap(`
-      <g><animateTransform attributeName="transform" type="translate" values="0 0;0 9;0 0" dur="1.5s" repeatCount="indefinite"/>
-        ${HEAD(50,16)}
-        <line x1="50" y1="23" x2="50" y2="55" ${HOLD}/>
-        <line x1="50" y1="26" x2="35" y2="42" ${HOLD}/>
-        <line x1="50" y1="26" x2="65" y2="42" ${HOLD}/>
-        <line x1="50" y1="55" x2="38" y2="85" ${MOVE}/>
-        <line x1="50" y1="55" x2="62" y2="85" ${MOVE}/>
-      </g>`),
-
-    "Abdominales": svgWrap(`
-      <line x1="65" y1="65" x2="65" y2="50" ${HOLD}/>
-      <line x1="65" y1="50" x2="80" y2="50" ${HOLD}/>
-      <g><animateTransform attributeName="transform" type="rotate" values="0 65 65;-18 65 65;0 65 65" dur="1.5s" repeatCount="indefinite"/>
-        ${HEAD(24,65)}
-        <line x1="31" y1="65" x2="65" y2="65" ${MOVE}/>
-      </g>`),
-
-    "Plancha": svgWrap(`
-      <g><animateTransform attributeName="transform" type="translate" values="0 0;0 -2;0 0" dur="2.4s" repeatCount="indefinite"/>
-        ${HEAD(20,52)}
-        <line x1="27" y1="52" x2="80" y2="52" ${HOLD}/>
-        <line x1="80" y1="52" x2="90" y2="62" ${HOLD}/>
-        <line x1="38" y1="52" x2="32" y2="76" ${MOVE}/>
-      </g>`),
-
-    "Puente de glúteos": svgWrap(`
-      ${HEAD(14,72)}
-      <line x1="21" y1="72" x2="50" y2="72" ${HOLD}><animate attributeName="y2" values="72;56;72" dur="1.6s" repeatCount="indefinite"/></line>
-      <line x1="50" y1="72" x2="70" y2="55" ${MOVE}><animate attributeName="y1" values="72;56;72" dur="1.6s" repeatCount="indefinite"/></line>
-      <line x1="70" y1="55" x2="86" y2="72" ${HOLD}/>
-    `),
-
-    "Zancada corta": svgWrap(`
-      <g><animateTransform attributeName="transform" type="translate" values="0 0;0 7;0 0" dur="1.5s" repeatCount="indefinite"/>
-        ${HEAD(50,16)}
-        <line x1="50" y1="23" x2="50" y2="55" ${HOLD}/>
-        <line x1="50" y1="28" x2="38" y2="40" ${HOLD}/>
-        <line x1="50" y1="28" x2="62" y2="40" ${HOLD}/>
-        <line x1="50" y1="55" x2="30" y2="85" ${MOVE}/>
-        <line x1="50" y1="55" x2="70" y2="80" ${HOLD}/>
-      </g>`),
-
-    "Marcha en el sitio": svgWrap(`
-      ${HEAD(50,16)}
-      <line x1="50" y1="23" x2="50" y2="55" ${HOLD}/>
-      <line x1="50" y1="28" x2="38" y2="42" ${HOLD}/>
-      <line x1="50" y1="28" x2="62" y2="42" ${HOLD}/>
-      <line x1="50" y1="55" x2="38" y2="85" ${MOVE}>
-        <animate attributeName="y2" values="85;58;85" dur="1.5s" repeatCount="indefinite"/>
-        <animate attributeName="x2" values="38;47;38" dur="1.5s" repeatCount="indefinite"/>
-      </line>
-      <line x1="50" y1="55" x2="62" y2="85" ${MOVE}>
-        <animate attributeName="y2" values="60;85;60" dur="1.5s" repeatCount="indefinite"/>
-        <animate attributeName="x2" values="53;62;53" dur="1.5s" repeatCount="indefinite"/>
-      </line>
-    `),
-
-    "Elevación lateral de pierna": svgWrap(`
-      ${HEAD(50,16)}
-      <line x1="50" y1="23" x2="50" y2="55" ${HOLD}/>
-      <line x1="50" y1="28" x2="38" y2="42" ${HOLD}/>
-      <line x1="50" y1="28" x2="62" y2="42" ${HOLD}/>
-      <line x1="50" y1="55" x2="38" y2="85" ${HOLD}/>
-      <line x1="50" y1="55" x2="62" y2="85" ${MOVE}>
-        <animate attributeName="x2" values="62;86;62" dur="1.6s" repeatCount="indefinite"/>
-        <animate attributeName="y2" values="85;76;85" dur="1.6s" repeatCount="indefinite"/>
-      </line>
-    `),
-
-    "Patada de glúteo": svgWrap(`
-      ${HEAD(50,16)}
-      <line x1="50" y1="23" x2="50" y2="55" ${HOLD}/>
-      <line x1="50" y1="28" x2="35" y2="40" ${HOLD}/>
-      <line x1="50" y1="28" x2="65" y2="40" ${HOLD}/>
-      <line x1="50" y1="55" x2="38" y2="85" ${HOLD}/>
-      <line x1="50" y1="55" x2="62" y2="85" ${MOVE}>
-        <animate attributeName="x2" values="62;55;62" dur="1.5s" repeatCount="indefinite"/>
-        <animate attributeName="y2" values="85;64;85" dur="1.5s" repeatCount="indefinite"/>
-      </line>
-    `),
-
-    "Sentadilla a silla": svgWrap(`
-      <rect x="40" y="72" width="20" height="6" rx="2" style="fill:var(--line)"/>
-      <g><animateTransform attributeName="transform" type="translate" values="0 0;0 11;0 0" dur="1.7s" repeatCount="indefinite"/>
-        ${HEAD(50,16)}
-        <line x1="50" y1="23" x2="50" y2="55" ${HOLD}/>
-        <line x1="50" y1="26" x2="35" y2="45" ${HOLD}/>
-        <line x1="50" y1="26" x2="65" y2="45" ${HOLD}/>
-        <line x1="50" y1="55" x2="38" y2="80" ${MOVE}/>
-        <line x1="50" y1="55" x2="62" y2="80" ${MOVE}/>
-      </g>`),
-
-    "Elevación de talones": svgWrap(`
-      <g><animateTransform attributeName="transform" type="translate" values="0 0;0 -6;0 0" dur="1.3s" repeatCount="indefinite"/>
-        ${HEAD(50,16)}
-        <line x1="50" y1="23" x2="50" y2="55" ${HOLD}/>
-        <line x1="50" y1="28" x2="38" y2="44" ${HOLD}/>
-        <line x1="50" y1="28" x2="62" y2="44" ${HOLD}/>
-        <line x1="50" y1="55" x2="40" y2="85" ${MOVE}/>
-        <line x1="50" y1="55" x2="60" y2="85" ${MOVE}/>
-      </g>`),
-
-    "Giro de tronco de pie": svgWrap(`
-      <line x1="50" y1="55" x2="38" y2="85" ${HOLD}/>
-      <line x1="50" y1="55" x2="62" y2="85" ${HOLD}/>
-      <g><animateTransform attributeName="transform" type="rotate" values="-16 50 55;16 50 55;-16 50 55" dur="1.8s" repeatCount="indefinite"/>
-        ${HEAD(50,16)}
-        <line x1="50" y1="23" x2="50" y2="55" ${MOVE}/>
-        <line x1="50" y1="26" x2="30" y2="30" ${MOVE}/>
-        <line x1="50" y1="26" x2="70" y2="30" ${MOVE}/>
-      </g>`),
-
-    "Superman suave": svgWrap(`
-      <line x1="35" y1="62" x2="60" y2="62" ${HOLD}/>
-      ${HEAD(22,62)}
-      <line x1="18" y1="62" x2="6" y2="58" ${MOVE}>
-        <animate attributeName="y2" values="58;50;58" dur="1.7s" repeatCount="indefinite"/>
-      </line>
-      <line x1="60" y1="62" x2="80" y2="66" ${MOVE}>
-        <animate attributeName="y2" values="66;58;66" dur="1.7s" repeatCount="indefinite"/>
-      </line>
-    `),
-
-    "Círculos de brazos": svgWrap(`
-      ${HEAD(50,16)}
-      <line x1="50" y1="23" x2="50" y2="55" ${HOLD}/>
-      <line x1="50" y1="55" x2="38" y2="85" ${HOLD}/>
-      <line x1="50" y1="55" x2="62" y2="85" ${HOLD}/>
-      <g><animateTransform attributeName="transform" type="rotate" values="0 50 27;360 50 27" dur="1.9s" repeatCount="indefinite"/>
-        <line x1="50" y1="27" x2="50" y2="10" ${MOVE}/>
-      </g>
-      <g><animateTransform attributeName="transform" type="rotate" values="0 50 27;-360 50 27" dur="1.9s" repeatCount="indefinite"/>
-        <line x1="50" y1="27" x2="50" y2="44" ${MOVE}/>
-      </g>`)
-  };
-
-  function setIllustration(exerciseName){
-    const slot = document.getElementById('illustrationSlot');
-    if(exerciseName && EXERCISE_ICONS[exerciseName]){
-      slot.innerHTML = EXERCISE_ICONS[exerciseName];
-      slot.classList.remove('hidden');
+  function setDescriptionCard(entry){
+    const card = document.getElementById('descCard');
+    const catEl = document.getElementById('descCategory');
+    const textEl = document.getElementById('descText');
+    const meta = entry && EXERCISE_META[entry.key];
+    if(meta){
+      catEl.textContent = meta.category + (entry.side ? ` · lado ${entry.side}` : '');
+      textEl.textContent = meta.description;
+      card.classList.remove('hidden');
     } else {
-      slot.innerHTML = '';
-      slot.classList.add('hidden');
+      card.classList.add('hidden');
     }
   }
 
   // ---------- Setup screen wiring ----------
   const chipList = document.getElementById('chipList');
-  EXERCISES.forEach(e=>{
-    const c = document.createElement('div');
-    c.className='chip'; c.textContent=e;
-    chipList.appendChild(c);
+  const categories = [...new Set(EXERCISE_POOL.map(e=>e.category))];
+  categories.forEach(cat=>{
+    const group = document.createElement('div');
+    group.className = 'chip-group';
+    const title = document.createElement('div');
+    title.className = 'chip-group-title';
+    title.textContent = cat;
+    const chips = document.createElement('div');
+    chips.className = 'chips';
+    EXERCISE_POOL.filter(e=>e.category===cat).forEach(e=>{
+      const c = document.createElement('div');
+      c.className='chip'; c.textContent=e.name;
+      chips.appendChild(c);
+    });
+    group.appendChild(title); group.appendChild(chips);
+    chipList.appendChild(group);
   });
 
   const blocksVal = document.getElementById('blocksVal');
@@ -704,9 +627,21 @@
 
   // ---------- Audio ----------
   let actx = null;
+  let masterGain = null;
+  let compressor = null;
   function ensureAudio(){
     if(!actx){
       actx = new (window.AudioContext || window.webkitAudioContext)();
+      masterGain = actx.createGain();
+      masterGain.gain.value = 1.0;
+      compressor = actx.createDynamicsCompressor();
+      compressor.threshold.setValueAtTime(-16, actx.currentTime);
+      compressor.knee.setValueAtTime(22, actx.currentTime);
+      compressor.ratio.setValueAtTime(10, actx.currentTime);
+      compressor.attack.setValueAtTime(0.002, actx.currentTime);
+      compressor.release.setValueAtTime(0.16, actx.currentTime);
+      masterGain.connect(compressor);
+      compressor.connect(actx.destination);
     }
     if(actx.state === 'suspended') actx.resume();
   }
@@ -718,26 +653,27 @@
     osc.type = type || 'sine';
     osc.frequency.setValueAtTime(freq, t0);
     g.gain.setValueAtTime(0, t0);
-    g.gain.linearRampToValueAtTime(gain||0.22, t0+0.02);
+    g.gain.linearRampToValueAtTime(gain||0.55, t0+0.02);
     g.gain.linearRampToValueAtTime(0, t0+duration);
-    osc.connect(g); g.connect(actx.destination);
+    osc.connect(g); g.connect(masterGain);
     osc.start(t0); osc.stop(t0+duration+0.02);
   }
-  function cueStartWork(){ beep(880,0.12,0,'square',0.25); beep(1180,0.14,0.14,'square',0.25); if(navigator.vibrate) navigator.vibrate([90,40,90]); }
-  function cueStartRest(){ beep(520,0.22,0,'sine',0.2); if(navigator.vibrate) navigator.vibrate(60); }
-  function cueBlockRest(){ beep(660,0.15,0,'triangle',0.22); beep(440,0.15,0.16,'triangle',0.22); beep(880,0.22,0.32,'triangle',0.22); if(navigator.vibrate) navigator.vibrate([80,60,80,60,140]); }
-  function cueTick(){ beep(760,0.05,0,'sine',0.1); }
-  function cueFinish(){ beep(523,0.16,0,'triangle',0.22); beep(659,0.16,0.17,'triangle',0.22); beep(784,0.28,0.34,'triangle',0.24); if(navigator.vibrate) navigator.vibrate([100,60,100,60,200]); }
+  function cuePrepare(){ beep(600,0.16,0,'sine',0.5); beep(600,0.16,0.45,'sine',0.5); if(navigator.vibrate) navigator.vibrate(50); }
+  function cueStartWork(){ beep(880,0.14,0,'square',0.6); beep(1180,0.16,0.14,'square',0.6); if(navigator.vibrate) navigator.vibrate([90,40,90]); }
+  function cueStartRest(){ beep(520,0.26,0,'sine',0.5); if(navigator.vibrate) navigator.vibrate(60); }
+  function cueBlockRest(){ beep(660,0.18,0,'triangle',0.5); beep(440,0.18,0.16,'triangle',0.5); beep(880,0.26,0.32,'triangle',0.5); if(navigator.vibrate) navigator.vibrate([80,60,80,60,140]); }
+  function cueTick(){ beep(760,0.06,0,'sine',0.35); }
+  function cueFinish(){ beep(523,0.18,0,'triangle',0.55); beep(659,0.18,0.17,'triangle',0.55); beep(784,0.3,0.34,'triangle',0.6); if(navigator.vibrate) navigator.vibrate([100,60,100,60,200]); }
 
-  function announceNext(name){
+  function announceNext(text){
     if(!soundOn) return;
     if(!('speechSynthesis' in window)) return;
     try{
       speechSynthesis.cancel();
-      const u = new SpeechSynthesisUtterance(name);
+      const u = new SpeechSynthesisUtterance(text);
       u.lang = 'es-ES';
       u.rate = 1.02;
-      u.volume = 0.9;
+      u.volume = 1.0;
       setTimeout(()=>speechSynthesis.speak(u), 350);
     }catch(e){}
   }
@@ -875,14 +811,18 @@
   let exIndex = 0;
   let block = 1;
   let blockElapsed = 0; // seconds elapsed within current block (work+rest only)
-  let phase = 'work';
-  let secondsLeft = WORK;
+  let phase = 'prepare';
+  let secondsLeft = PREPARE;
   let running = false;
   let timerId = null;
   let sessionDone = false;
 
-  // ---------- Randomized exercise rotation (shuffle-bag: full pass before any repeat) ----------
-  let exerciseSequence = [];
+  // ---------- Balanced exercise rotation, persisted across sessions ----------
+  // Shuffle-bag over the 19-exercise pool, saved to localStorage as it's consumed, so the
+  // long-term mix stays even across every session you run (not just within one workout).
+  const ROTATION_KEY = 'pista_rotation_v1';
+  let rotationQueue = null;
+
   function shuffleArray(arr){
     const a = arr.slice();
     for(let i=a.length-1; i>0; i--){
@@ -891,15 +831,55 @@
     }
     return a;
   }
-  function ensureSequence(uptoIndex){
-    while(exerciseSequence.length <= uptoIndex){
-      let bag = shuffleArray(EXERCISES);
-      // avoid an accidental repeat right at the seam between two bags
-      const last = exerciseSequence[exerciseSequence.length-1];
-      if(last && bag[0]===last && bag.length>1){
+  function loadRotationQueue(){
+    if(rotationQueue) return rotationQueue;
+    try{
+      const raw = localStorage.getItem(ROTATION_KEY);
+      if(raw){
+        const parsed = JSON.parse(raw);
+        const validNames = new Set(EXERCISE_POOL.map(e=>e.name));
+        if(Array.isArray(parsed) && parsed.every(n=>validNames.has(n))){
+          rotationQueue = parsed;
+          return rotationQueue;
+        }
+      }
+    }catch(e){}
+    rotationQueue = [];
+    return rotationQueue;
+  }
+  function saveRotationQueue(){
+    try{ localStorage.setItem(ROTATION_KEY, JSON.stringify(rotationQueue)); }catch(e){}
+  }
+  function drawNextPoolItem(){
+    loadRotationQueue();
+    if(rotationQueue.length === 0){
+      let bag = shuffleArray(EXERCISE_POOL.map(e=>e.name));
+      // avoid repeating the exercise that just closed the previous bag
+      if(lastDrawnName && bag[0]===lastDrawnName && bag.length>1){
         [bag[0],bag[1]] = [bag[1],bag[0]];
       }
-      exerciseSequence = exerciseSequence.concat(bag);
+      rotationQueue = bag;
+    }
+    const item = rotationQueue.shift();
+    lastDrawnName = item;
+    saveRotationQueue();
+    return item;
+  }
+  let lastDrawnName = null;
+
+  // In-memory display sequence for the current session; entries are {key, side} —
+  // side is 'izquierda'/'derecha' for paired exercises, null otherwise.
+  let exerciseSequence = [];
+  function ensureSequence(uptoIndex){
+    while(exerciseSequence.length <= uptoIndex){
+      const key = drawNextPoolItem();
+      const meta = EXERCISE_META[key];
+      if(meta && meta.paired){
+        exerciseSequence.push({key, side:'izquierda'});
+        exerciseSequence.push({key, side:'derecha'});
+      } else {
+        exerciseSequence.push({key, side:null});
+      }
     }
   }
   function resetExerciseSequence(){
@@ -927,11 +907,13 @@
   });
 
   function colorFor(p){
+    if(p==='prepare') return getComputedStyle(document.documentElement).getPropertyValue('--prepare').trim();
     if(p==='work') return getComputedStyle(document.documentElement).getPropertyValue('--work').trim();
     if(p==='rest') return getComputedStyle(document.documentElement).getPropertyValue('--rest').trim();
     return getComputedStyle(document.documentElement).getPropertyValue('--block').trim();
   }
   function phaseTotal(p){
+    if(p==='prepare') return PREPARE;
     if(p==='work') return WORK;
     if(p==='rest') return REST;
     return BLOCK_REST;
@@ -947,24 +929,30 @@
     phaseDot.style.background = color;
     phaseDot.style.boxShadow = `0 0 0 6px ${color}22`;
 
-    if(phase==='work'){
+    if(phase==='prepare'){
+      phaseLabel.textContent = 'Prepárate';
+      exerciseName.textContent = displayNameFor(currentExercise());
+      exerciseName.style.color = color;
+      nextLabel.innerHTML = `Arrancamos en unos segundos`;
+      setDescriptionCard(currentExercise());
+    } else if(phase==='work'){
       phaseLabel.textContent = '¡A tope!';
-      exerciseName.textContent = currentExercise();
+      exerciseName.textContent = displayNameFor(currentExercise());
       exerciseName.style.color = color;
       nextLabel.innerHTML = `Descanso 15s`;
-      setIllustration(null);
+      setDescriptionCard(null);
     } else if(phase==='rest'){
       phaseLabel.textContent = 'Descanso · prepárate';
-      exerciseName.textContent = peekNextExercise();
+      exerciseName.textContent = displayNameFor(peekNextExercise());
       exerciseName.style.color = color;
       nextLabel.innerHTML = `Respira, quedan 15s`;
-      setIllustration(peekNextExercise());
+      setDescriptionCard(peekNextExercise());
     } else {
       phaseLabel.textContent = 'Pausa de bloque';
       exerciseName.textContent = 'Bebe agua';
       exerciseName.style.color = color;
       nextLabel.innerHTML = block < numBlocks ? `Bloque ${block+1} de ${numBlocks} a continuación` : `Último tramo`;
-      setIllustration(null);
+      setDescriptionCard(null);
     }
 
     bigTime.textContent = secondsLeft;
@@ -989,10 +977,13 @@
   }
 
   function advancePhase(){
-    if(phase==='work'){
+    if(phase==='prepare'){
+      phase='work'; secondsLeft = WORK;
+      cueStartWork();
+    } else if(phase==='work'){
       phase='rest'; secondsLeft = REST;
       cueStartRest();
-      announceNext(peekNextExercise());
+      announceNext(displayNameFor(peekNextExercise()));
     } else if(phase==='rest'){
       blockElapsed += (WORK+REST);
       exIndex++;
@@ -1071,9 +1062,10 @@
     document.getElementById('finishScreen').classList.add('hidden');
     document.getElementById('timerScreen').classList.remove('hidden');
     resetExerciseSequence();
-    exIndex=0; block=1; blockElapsed=0; phase='work'; secondsLeft=WORK; sessionDone=false;
+    exIndex=0; block=1; blockElapsed=0; phase='prepare'; secondsLeft=PREPARE; sessionDone=false;
     render();
-    cueStartWork();
+    cuePrepare();
+    announceNext(`Prepárate. Primero, ${displayNameFor(currentExercise())}`);
     setPlaying(true);
   };
 
@@ -1090,8 +1082,10 @@
   document.getElementById('resetBtn').onclick = ()=>{
     stopTimer();
     resetExerciseSequence();
-    exIndex=0; block=1; blockElapsed=0; phase='work'; secondsLeft=WORK;
+    exIndex=0; block=1; blockElapsed=0; phase='prepare'; secondsLeft=PREPARE;
     render();
+    cuePrepare();
+    announceNext(`Prepárate. Primero, ${displayNameFor(currentExercise())}`);
     setPlaying(true);
   };
 
