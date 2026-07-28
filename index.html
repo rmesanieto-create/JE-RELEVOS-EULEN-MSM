@@ -601,8 +601,8 @@
       description:"Boca arriba, brazos hacia el techo y rodillas a 90°. Baja brazo y pierna contrarios sin arquear la zona lumbar, y vuelve. Alterna." },
     { name:"Flexiones inclinadas", group:"B", category:"Tren superior", paired:false,
       description:"Manos apoyadas en una mesa o pared con el cuerpo inclinado. Misma técnica que la flexión pero más fáciles." },
-    { name:"Remo invertido en mesa", group:"B", category:"Tren superior", paired:false,
-      description:"Túmbate bajo una mesa sólida y agárrate al borde con los brazos estirados. Tira del pecho hacia la mesa juntando los omóplatos y baja controlado. El único tirón de la rutina: cuida que la mesa aguante." },
+    { name:"Remo Superman en el suelo", group:"B", category:"Tren superior", paired:false,
+      description:"Boca abajo, brazos estirados al frente. Despega el pecho y los brazos, y lleva los codos hacia atrás y abajo pegándolos al cuerpo (como remar), juntando los omóplatos. Estira de nuevo al frente y repite. Cubre el patrón de tirón sin necesidad de material." },
     { name:"Elevaciones en Y tumbado", group:"B", category:"Tren superior", paired:false,
       description:"Boca abajo, brazos estirados sobre la cabeza formando una Y. Despega las manos del suelo juntando los omóplatos, mantén un instante y baja despacio." },
 
@@ -965,13 +965,27 @@
     });
     return seq;
   }
+  let nextBlockSequence = null;
   function startNewBlockSequence(){
-    const lastKey = exerciseSequence.length ? exerciseSequence[exerciseSequence.length-1].key : null;
-    exerciseSequence = buildBlockSequence(sessionGroup, lastKey);
+    if(nextBlockSequence){
+      exerciseSequence = nextBlockSequence;
+      nextBlockSequence = null;
+    } else {
+      const lastKey = exerciseSequence.length ? exerciseSequence[exerciseSequence.length-1].key : null;
+      exerciseSequence = buildBlockSequence(sessionGroup, lastKey);
+    }
     exIndex = 0;
+  }
+  // Build (but don't yet activate) the next block, so its first exercise can be
+  // previewed and announced during the 30" block rest.
+  function prepareNextBlockSequence(){
+    const lastKey = exerciseSequence.length ? exerciseSequence[exerciseSequence.length-1].key : null;
+    nextBlockSequence = buildBlockSequence(sessionGroup, lastKey);
+    return nextBlockSequence[0];
   }
   function resetExerciseSequence(){
     exerciseSequence = [];
+    nextBlockSequence = null;
     exIndex = 0;
   }
 
@@ -1050,11 +1064,14 @@
         setDescriptionCard(peekNextExercise());
       }
     } else {
+      const upcoming = nextBlockSequence ? nextBlockSequence[0] : null;
       phaseLabel.textContent = 'Pausa de bloque';
-      exerciseName.textContent = 'Bebe agua';
+      exerciseName.textContent = upcoming ? displayNameFor(upcoming) : 'Bebe agua';
       exerciseName.style.color = color;
-      nextLabel.innerHTML = block < numBlocks ? `Bloque ${block+1} de ${numBlocks} a continuación` : `Último tramo`;
-      setDescriptionCard(null);
+      nextLabel.innerHTML = upcoming
+        ? `Bloque ${block+1} de ${numBlocks} · a continuación`
+        : (block < numBlocks ? `Bloque ${block+1} de ${numBlocks} a continuación` : `Último tramo`);
+      setDescriptionCard(upcoming);
     }
 
     bigTime.textContent = secondsLeft;
@@ -1097,6 +1114,8 @@
         }
         phase='blockrest'; secondsLeft = BLOCK_REST;
         cueBlockRest();
+        const firstNext = prepareNextBlockSequence();
+        announceNext(`Pausa de 30 segundos. Después, ${displayNameFor(firstNext)}`);
       } else {
         exIndex++;
         phase='work'; secondsLeft = WORK;
@@ -1107,7 +1126,6 @@
       startNewBlockSequence();
       phase='work'; secondsLeft = WORK;
       cueStartWork();
-      announceNext(displayNameFor(currentExercise()));
     }
     render();
   }
