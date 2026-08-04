@@ -171,6 +171,13 @@
   .desc-text{
     font-size:13.5px; line-height:1.55; color:var(--text); margin:0; font-weight:400;
   }
+  .band-tag{
+    display:inline-block; font-size:9.5px; font-weight:700; letter-spacing:0.06em;
+    text-transform:uppercase; padding:2px 7px; border-radius:20px; margin-left:4px;
+    vertical-align:middle;
+  }
+  .band-naranja{ background:#F4E3D2; color:#9A5A22; }
+  .band-tela{ background:#EDEBE6; color:#6E6A62; }
 
   /* Block progress */
   .block-progress{
@@ -287,6 +294,10 @@
     background:var(--bg); color:var(--text); border:1px solid var(--line);
     font-weight:500;
   }
+  .chip-band{ display:inline-flex; align-items:center; gap:5px; }
+  .chip-band::before{ content:''; width:7px; height:7px; border-radius:50%; flex-shrink:0; }
+  .chip-band-naranja::before{ background:#D98A4E; }
+  .chip-band-tela::before{ background:#B8B2A6; }
   .chip-group + .chip-group{ margin-top:16px; }
   .chip-group-title{
     font-size:10.5px; letter-spacing:0.13em; font-weight:700;
@@ -414,6 +425,45 @@
     color:var(--muted); font-size:13.5px; text-align:center; padding:22px 10px;
     line-height:1.6;
   }
+
+  /* Body tracking */
+  .body-entry-card{
+    background:var(--surface); border:1px solid var(--line); border-radius:16px;
+    padding:18px; margin-bottom:12px;
+  }
+  .body-inputs{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .body-field label{
+    display:block; font-size:11px; letter-spacing:0.08em; text-transform:uppercase;
+    color:var(--muted); font-weight:600; margin-bottom:7px;
+  }
+  .input-unit{
+    display:flex; align-items:center; gap:6px;
+    background:var(--bg); border:1px solid var(--line); border-radius:12px;
+    padding:0 12px;
+  }
+  .input-unit input{
+    flex:1; min-width:0; border:none; background:transparent; outline:none;
+    font-family:'Manrope',sans-serif; font-size:24px; font-weight:300;
+    color:var(--text); padding:12px 0; -moz-appearance:textfield;
+  }
+  .input-unit input::-webkit-outer-spin-button,
+  .input-unit input::-webkit-inner-spin-button{ -webkit-appearance:none; margin:0; }
+  .input-unit span{ font-size:13px; color:var(--muted); font-weight:600; }
+  .input-unit:focus-within{ border-color:var(--work); }
+  .body-saved-note{
+    text-align:center; font-size:12.5px; color:var(--rest); font-weight:600;
+    margin-top:12px;
+  }
+  .line-chart{ width:100%; }
+  .line-chart svg{ width:100%; height:auto; display:block; overflow:visible; }
+  .empty-body{
+    color:var(--muted); font-size:13px; text-align:center; padding:18px 10px; line-height:1.6;
+  }
+  .body-badge{
+    font-size:13px; font-weight:600; color:var(--text); font-variant-numeric:tabular-nums;
+    text-align:right;
+  }
+  .body-badge small{ color:var(--muted); font-weight:500; }
 </style>
 </head>
 <body>
@@ -469,6 +519,7 @@
     </button>
 
     <button class="ghost-link" id="historyBtn" type="button">Ver historial de entrenamientos</button>
+    <button class="ghost-link" id="bodyBtn" type="button" style="margin-top:-6px;">Peso y cintura</button>
   </div>
 
   <!-- TIMER SCREEN -->
@@ -553,6 +604,59 @@
     <button class="ghost-link danger" id="clearHistoryBtn" type="button">Vaciar historial</button>
   </div>
 
+  <!-- BODY TRACKING SCREEN -->
+  <div class="hidden" id="bodyScreen">
+    <div class="hist-header">
+      <button class="btn btn-ghost" id="bodyBack" aria-label="Volver">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+      </button>
+      <div class="hist-title">Peso y cintura</div>
+      <div style="width:48px"></div>
+    </div>
+
+    <div class="body-entry-card">
+      <div class="chart-title" style="margin-bottom:14px;"><span id="bodyEntryTitle">Registro de hoy</span></div>
+      <div class="body-inputs">
+        <div class="body-field">
+          <label for="weightInput">Peso</label>
+          <div class="input-unit">
+            <input id="weightInput" type="number" inputmode="decimal" step="0.1" min="0" max="400" placeholder="—">
+            <span>kg</span>
+          </div>
+        </div>
+        <div class="body-field">
+          <label for="waistInput">Cintura</label>
+          <div class="input-unit">
+            <input id="waistInput" type="number" inputmode="decimal" step="0.5" min="0" max="250" placeholder="—">
+            <span>cm</span>
+          </div>
+        </div>
+      </div>
+      <button class="start-btn" id="saveBodyBtn" style="margin-top:16px;">Guardar registro de hoy</button>
+      <div class="body-saved-note hidden" id="bodySavedNote"></div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-title"><span>Peso</span><span class="chart-unit" id="weightRangeLabel">kg</span></div>
+      <div id="weightChart" class="line-chart"></div>
+      <div class="empty-body hidden" id="weightEmpty">Aún no hay registros de peso.</div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-title"><span>Cintura</span><span class="chart-unit" id="waistRangeLabel">cm</span></div>
+      <div id="waistChart" class="line-chart"></div>
+      <div class="empty-body hidden" id="waistEmpty">Aún no hay registros de cintura.</div>
+    </div>
+
+    <div class="hist-list-card">
+      <div class="chart-title"><span>Registros recientes</span></div>
+      <div class="session-list" id="bodyList"></div>
+      <div class="empty-history hidden" id="bodyEmpty">Todavía no has guardado ninguna medida. Apunta tu peso y/o cintura arriba cuando quieras — no hace falta que sea a diario.</div>
+    </div>
+
+    <button class="ghost-link danger" id="clearBodyBtn" type="button">Vaciar registros corporales</button>
+  </div>
+
 </div>
 
 <script>
@@ -626,13 +730,33 @@
     { name:"Flexiones diamante", group:"C", category:"Tren superior", paired:false,
       description:"Flexión con las manos juntas bajo el pecho, formando un triángulo con índices y pulgares. Codos cerca del cuerpo. Puedes hacerlas de rodillas." },
     { name:"Puñetazos al aire", group:"C", category:"Tren superior", paired:false,
-      description:"De pie, guardia alta y rodillas ligeramente flexionadas. Lanza puñetazos alternos al frente a buen ritmo, sin llegar a bloquear el codo del todo." }
+      description:"De pie, guardia alta y rodillas ligeramente flexionadas. Lanza puñetazos alternos al frente a buen ritmo, sin llegar a bloquear el codo del todo." },
+
+    // ---------------- GROUP D · con bandas ----------------
+    { name:"Sentadilla con banda", group:"D", category:"Piernas y glúteos", paired:false, band:"naranja",
+      description:"Pisa la banda naranja con los dos pies (anchura de hombros) y sujétala a la altura de los hombros. Haz la sentadilla: la banda añade resistencia al subir. Empuja con los talones." },
+    { name:"Puente de glúteo con banda", group:"D", category:"Piernas y glúteos", paired:false, band:"tela",
+      description:"Coloca la banda de tela justo por encima de las rodillas. Tumbado boca arriba, eleva la cadera apretando los glúteos y empuja ligeramente las rodillas hacia fuera contra la banda. Baja controlado." },
+    { name:"Abducción de cadera con banda", group:"D", category:"Piernas y glúteos", paired:true, band:"tela",
+      description:"Banda de tela por encima de los tobillos, de pie con apoyo en pared o silla. Abre una pierna recta hacia el lateral contra la banda y vuelve despacio. Trabaja el glúteo medio (clave para la prótesis)." },
+    { name:"Peso muerto con banda", group:"D", category:"Piernas y glúteos", paired:false, band:"naranja",
+      description:"Pisa la banda naranja y sujeta los extremos con las manos, piernas casi rectas. Con la espalda recta, baja el tronco desde la cadera (bisagra) y sube apretando glúteos. Sin redondear la espalda." },
+    { name:"Remo de pie con banda", group:"D", category:"Tren superior", paired:false, band:"naranja",
+      description:"Pisa la banda naranja con ambos pies y agarra los extremos. Ligeramente inclinado hacia delante con la espalda recta, tira de los codos hacia atrás juntando los omóplatos. Baja controlado. Este es el tirón que le faltaba a la rutina." },
+    { name:"Press de hombros con banda", group:"D", category:"Tren superior", paired:false, band:"naranja",
+      description:"Pisa la banda naranja y sujeta los extremos a la altura de los hombros. Empuja las manos hacia arriba hasta estirar los brazos y baja despacio." },
+    { name:"Curl de bíceps con banda", group:"D", category:"Tren superior", paired:false, band:"naranja",
+      description:"Pisa la banda naranja con ambos pies y agarra los extremos con las palmas hacia arriba. Flexiona los codos subiendo las manos hacia los hombros y baja controlado, sin balancear el cuerpo." },
+    { name:"Plancha frontal", group:"D", category:"Core / abdomen", paired:false,
+      description:"Apoyo en antebrazos y puntas de los pies, cuerpo recto como una tabla. Aprieta abdomen y glúteos; no hundas ni levantes la cadera." },
+    { name:"Dead bug (bicho muerto)", group:"D", category:"Core / abdomen", paired:false,
+      description:"Boca arriba, brazos hacia el techo y rodillas a 90°. Baja brazo y pierna contrarios sin arquear la zona lumbar, y vuelve. Alterna." }
   ];
   const EXERCISE_META = {};
   EXERCISE_POOL.forEach(e=>{ EXERCISE_META[e.name] = e; });
 
-  const GROUP_IDS = ["A","B","C"];
-  const GROUP_LABELS = { A:"Grupo A", B:"Grupo B", C:"Grupo C" };
+  const GROUP_IDS = ["A","B","C","D"];
+  const GROUP_LABELS = { A:"Grupo A", B:"Grupo B", C:"Grupo C", D:"Grupo D · bandas" };
   function poolForGroup(g){ return EXERCISE_POOL.filter(e=>e.group===g); }
   // slots a group occupies (a pair takes two)
   function slotsInGroup(g){ return poolForGroup(g).reduce((n,e)=>n+(e.paired?2:1),0); }
@@ -652,7 +776,12 @@
     const textEl = document.getElementById('descText');
     const meta = entry && EXERCISE_META[entry.key];
     if(meta){
-      catEl.textContent = meta.category + (entry.side ? ` · lado ${entry.side === 'izquierda' ? 'izquierdo' : 'derecho'}` : '');
+      let cat = meta.category + (entry.side ? ` · lado ${entry.side === 'izquierda' ? 'izquierdo' : 'derecho'}` : '');
+      catEl.innerHTML = cat;
+      if(meta.band){
+        const label = meta.band === 'tela' ? 'Banda de tela' : 'Banda naranja';
+        catEl.innerHTML = cat + ` <span class="band-tag band-${meta.band}">${label}</span>`;
+      }
       textEl.textContent = meta.description;
       card.classList.remove('hidden');
     } else {
@@ -684,7 +813,7 @@
       chips.className = 'chips';
       items.filter(e=>e.category===cat).forEach(e=>{
         const c = document.createElement('div');
-        c.className='chip';
+        c.className='chip' + (e.band ? ' chip-band chip-band-'+e.band : '');
         c.textContent = e.paired ? `${e.name} (×2)` : e.name;
         chips.appendChild(c);
       });
@@ -872,6 +1001,139 @@
           <div class="session-badge">${s.minutes} min</div>
         `;
         sessionList.appendChild(row);
+      });
+    }
+  }
+
+  // ---------- Body tracking (weight + waist), stored locally on this device ----------
+  const BODY_KEY = 'pista_body_v1';
+
+  function loadBody(){
+    try{
+      const raw = localStorage.getItem(BODY_KEY);
+      return raw ? JSON.parse(raw) : [];
+    }catch(e){ return []; }
+  }
+  function saveBody(list){
+    try{ localStorage.setItem(BODY_KEY, JSON.stringify(list)); }catch(e){}
+  }
+  function bodyDayKey(d){
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  }
+  // One entry per day: saving again the same day updates that day's values.
+  function upsertBodyEntry(weight, waist){
+    const list = loadBody();
+    const key = bodyDayKey(new Date());
+    let entry = list.find(e=>e.day === key);
+    if(!entry){
+      entry = { day:key, ts:Date.now() };
+      list.push(entry);
+    }
+    entry.ts = Date.now();
+    if(weight != null) entry.weight = weight;
+    if(waist != null) entry.waist = waist;
+    saveBody(list);
+    return entry;
+  }
+
+  function drawLineChart(containerId, emptyId, list, field, unit, color){
+    const container = document.getElementById(containerId);
+    const empty = document.getElementById(emptyId);
+    const points = list
+      .filter(e=>typeof e[field] === 'number')
+      .sort((a,b)=> a.day < b.day ? -1 : 1);
+
+    if(points.length === 0){
+      container.innerHTML = '';
+      empty.classList.remove('hidden');
+      return;
+    }
+    empty.classList.add('hidden');
+
+    const W = 320, H = 130, padL = 34, padR = 10, padT = 12, padB = 22;
+    const vals = points.map(p=>p[field]);
+    let min = Math.min(...vals), max = Math.max(...vals);
+    if(min === max){ min -= 1; max += 1; }
+    const pad = (max-min)*0.15;
+    min -= pad; max += pad;
+
+    const n = points.length;
+    const xFor = i => n===1 ? (padL+(W-padL-padR)/2) : padL + (i/(n-1))*(W-padL-padR);
+    const yFor = v => padT + (1-(v-min)/(max-min))*(H-padT-padB);
+
+    // gridlines / axis labels (min, mid, max)
+    const ticks = [min+pad, (min+max)/2, max-pad];
+    let grid = '';
+    ticks.forEach(t=>{
+      const y = yFor(t);
+      grid += `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${W-padR}" y2="${y.toFixed(1)}" stroke="var(--line)" stroke-width="1"/>`;
+      grid += `<text x="${padL-6}" y="${(y+3).toFixed(1)}" text-anchor="end" font-size="9" fill="var(--muted)" font-family="Manrope">${t.toFixed(t>=100?0:1)}</text>`;
+    });
+
+    let linePts = points.map((p,i)=>`${xFor(i).toFixed(1)},${yFor(p[field]).toFixed(1)}`).join(' ');
+    // area fill under the line
+    let area = `${padL},${(H-padB).toFixed(1)} ` + linePts + ` ${xFor(n-1).toFixed(1)},${(H-padB).toFixed(1)}`;
+
+    let dots = points.map((p,i)=>`<circle cx="${xFor(i).toFixed(1)}" cy="${yFor(p[field]).toFixed(1)}" r="3" fill="${color}"/>`).join('');
+
+    // date labels for first and last
+    const fmt = new Intl.DateTimeFormat('es-ES',{day:'numeric',month:'short'});
+    const firstLbl = fmt.format(new Date(points[0].day));
+    const lastLbl = fmt.format(new Date(points[n-1].day));
+    let dateLbls = `<text x="${padL}" y="${H-6}" text-anchor="start" font-size="9" fill="var(--muted)" font-family="Manrope">${firstLbl}</text>`;
+    if(n>1) dateLbls += `<text x="${W-padR}" y="${H-6}" text-anchor="end" font-size="9" fill="var(--muted)" font-family="Manrope">${lastLbl}</text>`;
+
+    container.innerHTML = `<svg viewBox="0 0 ${W} ${H}">
+      ${grid}
+      <polygon points="${area}" fill="${color}" opacity="0.08"/>
+      <polyline points="${linePts}" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      ${dots}
+      ${dateLbls}
+    </svg>`;
+
+    // range label: latest value + delta vs first
+    const latest = points[n-1][field];
+    const delta = latest - points[0][field];
+    const deltaStr = n>1 ? ` · ${delta>=0?'+':''}${delta.toFixed(1)} ${unit}` : '';
+    const lbl = document.getElementById(field==='weight'?'weightRangeLabel':'waistRangeLabel');
+    if(lbl) lbl.textContent = `${latest.toFixed(latest>=100?1:1)} ${unit}${deltaStr}`;
+  }
+
+  function renderBodyScreen(){
+    const list = loadBody();
+
+    // prefill today's values if already logged
+    const todayKey = bodyDayKey(new Date());
+    const today = list.find(e=>e.day === todayKey);
+    document.getElementById('weightInput').value = today && today.weight != null ? today.weight : '';
+    document.getElementById('waistInput').value = today && today.waist != null ? today.waist : '';
+    document.getElementById('bodyEntryTitle').textContent = today ? 'Registro de hoy (editar)' : 'Registro de hoy';
+    document.getElementById('bodySavedNote').classList.add('hidden');
+
+    drawLineChart('weightChart','weightEmpty', list, 'weight', 'kg', '#A63D5B');
+    drawLineChart('waistChart','waistEmpty', list, 'waist', 'cm', '#5E7C99');
+
+    // recent list
+    const bodyList = document.getElementById('bodyList');
+    const bodyEmpty = document.getElementById('bodyEmpty');
+    const sorted = list.slice().sort((a,b)=> a.day < b.day ? 1 : -1);
+    bodyList.innerHTML = '';
+    if(sorted.length === 0){
+      bodyEmpty.classList.remove('hidden');
+    } else {
+      bodyEmpty.classList.add('hidden');
+      const dateFmt = new Intl.DateTimeFormat('es-ES',{weekday:'short', day:'numeric', month:'short'});
+      sorted.slice(0,30).forEach(e=>{
+        const parts = [];
+        if(e.weight != null) parts.push(`${e.weight} <small>kg</small>`);
+        if(e.waist != null) parts.push(`${e.waist} <small>cm</small>`);
+        const row = document.createElement('div');
+        row.className = 'session-row';
+        row.innerHTML = `
+          <div><div class="session-date">${dateFmt.format(new Date(e.day))}</div></div>
+          <div class="body-badge">${parts.join(' &nbsp; ')}</div>
+        `;
+        bodyList.appendChild(row);
       });
     }
   }
@@ -1236,6 +1498,59 @@
     if(confirm('¿Vaciar todo el historial de entrenamientos guardado en este dispositivo? Esta acción no se puede deshacer.')){
       saveHistory([]);
       renderHistoryScreen();
+    }
+  };
+
+  // ---- Body tracking controls ----
+  document.getElementById('bodyBtn').onclick = ()=>{
+    document.getElementById('setupScreen').classList.add('hidden');
+    document.getElementById('bodyScreen').classList.remove('hidden');
+    renderBodyScreen();
+  };
+
+  document.getElementById('bodyBack').onclick = ()=>{
+    document.getElementById('bodyScreen').classList.add('hidden');
+    document.getElementById('setupScreen').classList.remove('hidden');
+    renderGroupPreview();
+  };
+
+  document.getElementById('saveBodyBtn').onclick = ()=>{
+    const wRaw = document.getElementById('weightInput').value.trim().replace(',', '.');
+    const cRaw = document.getElementById('waistInput').value.trim().replace(',', '.');
+    const weight = wRaw === '' ? null : parseFloat(wRaw);
+    const waist = cRaw === '' ? null : parseFloat(cRaw);
+    const note = document.getElementById('bodySavedNote');
+
+    if(weight == null && waist == null){
+      note.textContent = 'Escribe al menos un valor para guardar.';
+      note.style.color = 'var(--muted)';
+      note.classList.remove('hidden');
+      return;
+    }
+    if(weight != null && (isNaN(weight) || weight <= 0 || weight > 400)){
+      note.textContent = 'Ese peso no parece válido.';
+      note.style.color = 'var(--muted)';
+      note.classList.remove('hidden');
+      return;
+    }
+    if(waist != null && (isNaN(waist) || waist <= 0 || waist > 250)){
+      note.textContent = 'Esa medida de cintura no parece válida.';
+      note.style.color = 'var(--muted)';
+      note.classList.remove('hidden');
+      return;
+    }
+
+    upsertBodyEntry(weight, waist);
+    renderBodyScreen();
+    note.textContent = 'Guardado ✓';
+    note.style.color = 'var(--rest)';
+    note.classList.remove('hidden');
+  };
+
+  document.getElementById('clearBodyBtn').onclick = ()=>{
+    if(confirm('¿Vaciar todos los registros de peso y cintura guardados en este dispositivo? Esta acción no se puede deshacer.')){
+      saveBody([]);
+      renderBodyScreen();
     }
   };
 
