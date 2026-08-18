@@ -1,0 +1,20 @@
+{
+  "name": "Pista · Fuerza y 15/15",
+  "short_name": "Pista",
+  "description": "Entrenamiento diario de fuerza, control y 15/15 para completar después de caminar.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F5F3EF",
+  "theme_color": "#F5F3EF",
+  "lang": "es",
+  "icons": [
+    {
+      "src": "app-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
